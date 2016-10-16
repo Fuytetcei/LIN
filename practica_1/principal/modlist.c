@@ -32,40 +32,7 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 	trace_printk(KERN_INFO "moslist: leyendo elemento.\n");
 	auxbuff = (char*)vmalloc(10);
 	memset(auxbuff, '\n', 10);
-	// Busco el siguiente elemento
-	read_head = read_head->next;
-	// Miro si he llegado al final
-	if(read_head == &mylist){
-		copy_to_user(buf, '\0', 1);
-		printk(KERN_INFO "moslist: fin de lista.\n");
-		// Actualizo el puntero del fichero ------------ !!!!
-		//off = 0;
-	}
-	else {
-		// Extraigo el número
-		node = list_entry(read_head, list_item_t, links);
-		if(!node) {
-			printk(KERN_INFO "moslist: error al leer de la lista.\n");
-			return 0;
-		}
-		num = node->data;
-		
-		// Lo transformo en cadena de carancteres
-		i = 0;
-		while ((num >= 1) && (i < 10)) {
-	        dig = num % 10;
-
-            auxbuff[i] = (char) (dig + 48);            
-            num -= dig;
-            num /= 10;
-	        i++;
-	    }
-		// Lo copio a espacio usuario
-		copy_to_user(buf, auxbuff, 10);
-		// Actualizo el puntero del fichero
-		(*off)+=len;
-		printk(KERN_INFO "moslist: len: %i\n", (int)len);
-	}
+	
 
 	printk(KERN_INFO "moslist: elemento leido.\n");
 	// Devuelvo 1
@@ -112,14 +79,16 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 			//}
 		//}
 		else {
-			printk(KERN_INFO "moslist: Instrucción desconocida.\n");
+			//printk(KERN_INFO "moslist: Instrucción desconocida.\n");
 			dev = 0;
 		}
 
 	// Actualizo punteros
+	(*off)+=len;
 
 	// Devuelvo número de datos guardados
-		return dev;
+	return dev;
+	//return 1;
 };
 
 // Insertar
@@ -135,16 +104,18 @@ int insert(int num) {
 	else {
 		// Reservo memoria para el nuevo nodo
 		new = (list_item_t*)vmalloc(sizeof(list_item_t));
-		if(!new){
+		if(!new)
 			return 0;
-		}
 		// Asigno el nuevo dato
 		new->data = num;
-		printk(KERN_INFO "modlist: memoria reservada %i\n", new->data);
+		if((new->links.prev == NULL) || (new->links.next == NULL))
+			printk(KERN_INFO "modlist: nuevo erróneo\n");
+		if((mylist.prev == NULL) || (mylist.next == NULL))
+			printk(KERN_INFO "modlist: mylist error\n");
 
 		// Añado el nuevo nodo
-		list_add(&new->links, &mylist);
-		printk(KERN_INFO "modlist: dato guardado\n", new->data);
+		list_add_tail(&new->links, &mylist);
+		printk(KERN_INFO "modlist: dato guardado\n");
 
 		// Actualizo parámetros de control
 		mem += sizeof(list_item_t);
@@ -214,8 +185,10 @@ int modulo_modlist_init(void) {
 	printk(KERN_INFO "modlist: Entrada /proc creada.\n");
 
 	// Inicializo la cabeza de la lista
-	LIST_HEAD(mylist);
-	INIT_LIST_HEAD(&mylist);
+	//LIST_HEAD(mylist);
+	//INIT_LIST_HEAD(&mylist);
+	mylist.prev = &mylist;
+	mylist.next = &mylist;
 	// Inicializo la cabeza de lectura
 	read_head = &mylist;
 
