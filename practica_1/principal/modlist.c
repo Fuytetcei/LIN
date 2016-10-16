@@ -29,16 +29,17 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 	   10 bytes ya que son el número máximo de cifras que
 	   puede tener un tipo int 
 	*/
+	trace_printk(KERN_INFO "moslist: leyendo elemento.\n");
 	auxbuff = (char*)vmalloc(10);
-	memset(auxbuff, '\0', 10);
+	memset(auxbuff, '\n', 10);
 	// Busco el siguiente elemento
 	read_head = read_head->next;
 	// Miro si he llegado al final
-	if(!read_head){
+	if(read_head == &mylist){
 		copy_to_user(buf, '\0', 1);
-		read_head = &mylist;
+		printk(KERN_INFO "moslist: fin de lista.\n");
 		// Actualizo el puntero del fichero ------------ !!!!
-		off = 0;
+		//off = 0;
 	}
 	else {
 		// Extraigo el número
@@ -50,22 +51,23 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 		num = node->data;
 		
 		// Lo transformo en cadena de carancteres
-		while (num >= 1) {
+		i = 0;
+		while ((num >= 1) && (i < 10)) {
 	        dig = num % 10;
 
-	        if (i < 9) {
-	            auxbuff[i] = (char) (dig + 48);            
-	            num -= dig;
-	            num /= 10;
-	        }
-
+            auxbuff[i] = (char) (dig + 48);            
+            num -= dig;
+            num /= 10;
 	        i++;
 	    }
 		// Lo copio a espacio usuario
+		copy_to_user(buf, auxbuff, 10);
 		// Actualizo el puntero del fichero
-		off += 1;
+		(*off)+=len;
+		printk(KERN_INFO "moslist: len: %i\n", (int)len);
 	}
-	
+
+	printk(KERN_INFO "moslist: elemento leido.\n");
 	// Devuelvo 1
 	return 1;
 };
@@ -124,26 +126,32 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 int insert(int num) {
 	list_item_t *new = NULL;
 
+	printk(KERN_INFO "modlist: añadiendo elemento.\n");
 	// Miro si me queda memoria para más elementos
-	if(mem >= BUFFER_KERNEL)
+	if(mem >= BUFFER_KERNEL){
+		printk(KERN_INFO "modlist: no queda espacio en la pila.\n");
 		return 2;
+	}
 	else {
 		// Reservo memoria para el nuevo nodo
 		new = (list_item_t*)vmalloc(sizeof(list_item_t));
 		if(!new){
 			return 0;
 		}
-
 		// Asigno el nuevo dato
 		new->data = num;
+		printk(KERN_INFO "modlist: memoria reservada %i\n", new->data);
 
 		// Añado el nuevo nodo
-		list_add_tail(&new->links, &mylist);
+		list_add(&new->links, &mylist);
+		printk(KERN_INFO "modlist: dato guardado\n", new->data);
 
 		// Actualizo parámetros de control
 		mem += sizeof(list_item_t);
 		numElem++;
 	}
+
+	printk(KERN_INFO "modlist: elemento añadido.\n");
 
 	return 1;
 };
@@ -154,6 +162,7 @@ int remove (int num) {
 	struct list_head *n = NULL;
 	list_item_t *node;
 
+	printk(KERN_INFO "modlist: eliminando elemento.\n");
 	// Itero hasta reencontrarme con la cabeza
 	list_for_each_safe(pos, n, &mylist){
 		// Obtengo el puntero de la estructura del nodo
@@ -170,6 +179,7 @@ int remove (int num) {
 		}
 	}
 
+	printk(KERN_INFO "modlist: elemento borrado.\n");
 	return 1;
 };
 
@@ -191,11 +201,11 @@ int modulo_modlist_init(void) {
 	}
 
 	// PARA QUE VALÍA ESTO??!!
-	memset(buff_modlist, 0, BUFFER_LENGTH);
+	memset(buff_modlist, '\0', BUFFER_LENGTH);
 
 	// Creo la entrada a /Proc
 	proc_entry = proc_create("modlist", 0666, NULL, &fops);
-	if(proc_entry == NULL) {
+	if(!proc_entry) {
 		// Si hay error libero memoria y salgo con error
 		vfree(buff_modlist);
 		printk(KERN_INFO "modlist: No se pudo crear entrada /proc.\n");
@@ -220,9 +230,10 @@ void modulo_modlist_clean(void) {
 	struct list_head *n = NULL;
 
 	// Libero la memoria de la lista si no está vacía
-	if(!list_empty(&mylist)){
+	if(list_empty(&mylist)){
+		printk(KERN_INFO "eliminando lista.\n");
 		list_for_each_safe(pos, n, &mylist){
-			// Elimino el elemento
+			//clear Elimino el elemento
 			list_del(pos);
 			// Libero memoria
 			vfree(pos);
