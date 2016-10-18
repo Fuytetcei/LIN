@@ -1,0 +1,42 @@
+#/bin/bash
+
+insmod modlist.ko
+
+cat /proc/modlist
+echo
+
+echo "add 4" > /proc/modlist
+echo "add 4" > /proc/modlist
+echo "add 45" > /proc/modlist
+echo "add 6" > /proc/modlist
+echo "add 6" > /proc/modlist
+echo "add 6" > /proc/modlist
+echo "add 78" > /proc/modlist
+echo "add 9" > /proc/modlist
+echo "add 45" > /proc/modlist
+echo "add 45" > /proc/modlist
+echo "add 234" > /proc/modlist
+echo "add 5" > /proc/modlist
+echo "add 4" > /proc/modlist
+
+cat /proc/modlist
+echo
+
+echo "remove 4" > /proc/modlist
+cat /proc/modlist
+echo
+echo "remove 6" > /proc/modlist
+cat /proc/modlist
+echo
+echo "remove 45" > /proc/modlist
+echo
+cat /proc/modlist
+echo "cleanup"
+
+echo "cleanup" > /proc/modlist
+
+cat /proc/modlist
+
+echo "cleanup"
+
+rmmod modlist
