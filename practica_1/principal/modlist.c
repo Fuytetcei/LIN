@@ -38,7 +38,6 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 		memset(auxbuff, '\0', 11);
 		copy_to_user(buf, auxbuff, 11);
 		(*off) = (loff_t) filp;
-		printk(KERN_INFO "moslist: fin de lista\n");
 		return 0;
 	}
 	else {
@@ -94,14 +93,16 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 		else if (sscanf(buff_modlist, "remove %i",  &num))
 			remove(num);
 		// Eliminar todos los elementos
-		else if (sscanf(buff_modlist, "cleanup") == 7) {
-			dev = cleanup();
-		}
 		else {
-			printk(KERN_INFO "moslist: Instrucción desconocida.\n");
-			dev = 0;
+			sscanf(buff_modlist, "%s", buff_modlist);
+			if(!strcmp(buff_modlist, "cleanup")) {
+				dev = cleanup();
+			}
+			else {
+				printk(KERN_INFO "moslist: Instrucción desconocida.\n");
+				dev = 0;
+			}
 		}
-
 	// Actualizo punteros
 	(*off)+=len;
 
@@ -168,7 +169,6 @@ int cleanup() {
 	list_item_t *node;
 	int i = 0;
 
-	printk(KERN_INFO "modlist: limpiando lista\n");
 	// Itero hasta reencontrarme con la cabeza
 	list_for_each_safe(pos, n, &mylist){
 		// Obtengo el puntero de la estructura del nodo
