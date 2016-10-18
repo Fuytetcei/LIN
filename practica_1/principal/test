@@ -3,6 +3,7 @@
 insmod modlist.ko
 
 cat /proc/modlist
+echo
 
 echo "add 4" > /proc/modlist
 echo "add 4" > /proc/modlist

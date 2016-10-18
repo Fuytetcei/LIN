@@ -173,21 +173,17 @@ int cleanup() {
 	list_for_each_safe(pos, n, &mylist){
 		// Obtengo el puntero de la estructura del nodo
 		node = list_entry(pos, list_item_t, links);
-		printk(KERN_INFO "modlist: obteniendo nodo\n");
 		// Elimino el elemento
 		list_del(pos);
-		printk(KERN_INFO "modlist: nodo eliminado %i\n", node->data);
 		// Libero memoria
 		vfree(node);
 		if(!node)
-			printk(KERN_INFO "modlist: memoria liberada\n");
 		// Actualizo parámetros de control
 		mem -= sizeof(list_item_t);
 		i++;
 	}
 	read_head = &mylist;
 
-	printk(KERN_INFO "modlist: lista limpia\n");
 	return i;
 }
 
@@ -219,7 +215,7 @@ int modulo_modlist_init(void) {
 		printk(KERN_INFO "modlist: No se pudo crear entrada /proc.\n");
 		return -ENOMEM;
 	}
-	printk(KERN_INFO "modlist: Entrada /proc creada.\n");
+	printk(KERN_INFO "modlist: entrada /proc creada.\n");
 
 	// Inicializo la cabeza de la lista
 	//LIST_HEAD(mylist);
@@ -230,7 +226,6 @@ int modulo_modlist_init(void) {
 	read_head = &mylist;
 
 	/* Devolver 0 para indicar una carga correcta del módulo */
-	printk(KERN_INFO "Modulo modlist cargado.");
 	return 0;
 };
 
@@ -241,7 +236,6 @@ void modulo_modlist_clean(void) {
 
 	// Libero la memoria de la lista si no está vacía
 	if(list_empty(&mylist)){
-		printk(KERN_INFO "eliminando lista.\n");
 		list_for_each_safe(pos, n, &mylist){
 			//clear Elimino el elemento
 			list_del(pos);
@@ -253,7 +247,7 @@ void modulo_modlist_clean(void) {
 	remove_proc_entry("modlist", NULL);
 	// Libero memoria
 	vfree(buff_modlist);
-	printk(KERN_INFO "Modulo modlist descargado.\n");
+	printk(KERN_INFO "modlist: descargado.\n");
 };
 
 /* Declaración de funciones init y cleanup */
