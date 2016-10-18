@@ -4,13 +4,7 @@
 
 */
 
-#ifndef _MODLISTINT
-	#include "modlistInt.h"
-	#define char *name = "modlistInt"
-#else
-	#include "modlistChar.h"
-	#define char *name = "modlistChar"
-#endif
+#include "modlistOp.h"
 
 // Asigno las funciones necesarias para operar con la entrada
 static const struct file_operations fops = {
@@ -31,14 +25,14 @@ int modulo_modlist_init(void) {
 	memset(buff_modlist, '\0', BUFFER_LENGTH);
 
 	// Creo la entrada a /Proc
-	proc_entry = proc_create(name, 0666, NULL, &fops);
+	proc_entry = proc_create(modname, 0666, NULL, &fops);
 	if(!proc_entry) {
 		// Si hay error libero memoria y salgo con error
 		vfree(buff_modlist);
-		printk(KERN_INFO "%s: No se pudo crear entrada /proc.\n", name);
+		printk(KERN_INFO "%s: No se pudo crear entrada /proc.\n", modname);
 		return -ENOMEM;
 	}
-	printk(KERN_INFO "%s: entrada /proc creada.\n", name);
+	printk(KERN_INFO "%s: entrada /proc creada.\n", modname);
 
 	// Inicializo la cabeza de la lista
 	//LIST_HEAD(mylist);
@@ -67,10 +61,10 @@ void modulo_modlist_clean(void) {
 		}
 	}
 	// Elimino la entrada a /Proc
-	remove_proc_entry(name, NULL);
+	remove_proc_entry(modname, NULL);
 	// Libero memoria
 	vfree(buff_modlist);
-	printk(KERN_INFO "%s: descargado.\n", name);
+	printk(KERN_INFO "%s: descargado.\n", modname);
 };
 
 /* Declaración de funciones init y cleanup */

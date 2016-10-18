@@ -1,0 +1,17 @@
+#/bin/bash
+
+make clean
+
+EXTRA_CFLAGS=-D_MODLISTCHAR make
+
+insmod modlist.ko
+
+echo "add hola_mundo" > /proc/modlistChar
+
+cat /proc/modlistChar
+
+echo "remove hola_mundo" > /proc/modlistChar
+
+cat /proc/modlistChar
+
+rmmod modlist

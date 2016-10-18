@@ -9,6 +9,8 @@
 
 #include "modlist.h"
 
+char *modname = "modlistInt";
+
 // Declaro funciones axiliares
 int insert (int num);
 void remove (int num);
