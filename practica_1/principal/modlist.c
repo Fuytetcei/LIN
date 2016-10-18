@@ -91,13 +91,11 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 				printk(KERN_INFO "modlist: error al reservar memoria");
 	
 		}// Eliminar todas las apariciones de un elemento
-		else if (sscanf(buff_modlist, "remove %i",  &num)) {
-			dev = remove(num);
-		//}// Eliminar todos los elementos
-		//else if (sscanf(buf_modlist, "cleanup")) {
-			//while(/* LISTA NO VACÍA */){
-				/* ELIMINAR CABEZA */
-			//}
+		else if (sscanf(buff_modlist, "remove %i",  &num))
+			remove(num);
+		// Eliminar todos los elementos
+		else if (sscanf(buff_modlist, "cleanup") == 7) {
+			dev = cleanup();
 		}
 		else {
 			printk(KERN_INFO "moslist: Instrucción desconocida.\n");
@@ -116,10 +114,8 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 int insert (int num) {
 	list_item_t *new = NULL;
 
-	printk(KERN_INFO "modlist: añadiendo elemento.\n");
 	// Miro si me queda memoria para más elementos
 	if(mem >= BUFFER_KERNEL){
-		printk(KERN_INFO "modlist: no queda espacio en la pila.\n");
 		return 2;
 	}
 	else {
@@ -129,55 +125,71 @@ int insert (int num) {
 			return 0;
 		// Asigno el nuevo dato
 		new->data = num;
-		if((new->links.prev == NULL) || (new->links.next == NULL))
-			printk(KERN_INFO "modlist: nuevo erróneo\n");
-		if((mylist.prev == NULL) || (mylist.next == NULL))
-			printk(KERN_INFO "modlist: mylist error\n");
 
 		// Añado el nuevo nodo
 		list_add_tail(&new->links, &mylist);
-		printk(KERN_INFO "modlist: dato guardado %i\n", num);
 
 		// Actualizo parámetros de control
 		mem += sizeof(list_item_t);
 	}
 
 	read_head = mylist.next;
-	printk(KERN_INFO "modlist: elemento añadido\n");
 
 	return 1;
 };
 
 // Eliminar
-int remove (int num) {
+void remove (int num) {
 	struct list_head *pos = NULL;
 	struct list_head *n = NULL;
 	list_item_t *node;
 
-	printk(KERN_INFO "modlist: eliminando elemento\n");
 	// Itero hasta reencontrarme con la cabeza
 	list_for_each_safe(pos, n, &mylist){
 		// Obtengo el puntero de la estructura del nodo
 		node = list_entry(pos, list_item_t, links);
-		printk(KERN_INFO "modlist: obteniendo nodo\n");
 		// Miro si soinciden los elementos
 		if(node->data == num) {
 			// Elimino el elemento
 			list_del(pos);
-			printk(KERN_INFO "modlist: nodo eliminado %i\n", node->data);
 			// Libero memoria
 			vfree(node);
-			if(!node)
-				printk(KERN_INFO "modlist: memoria eliminada\n");
 			// Actualizo parámetros de control
 			mem -= sizeof(list_item_t);
 		}
 	}
 	read_head = mylist.next;
-
-	printk(KERN_INFO "modlist: elemento borrado\n");
-	return 1;
 };
+
+/* Limpiar lista */
+int cleanup() {
+	struct list_head *pos = NULL;
+	struct list_head *n = NULL;
+	list_item_t *node;
+	int i = 0;
+
+	printk(KERN_INFO "modlist: limpiando lista\n");
+	// Itero hasta reencontrarme con la cabeza
+	list_for_each_safe(pos, n, &mylist){
+		// Obtengo el puntero de la estructura del nodo
+		node = list_entry(pos, list_item_t, links);
+		printk(KERN_INFO "modlist: obteniendo nodo\n");
+		// Elimino el elemento
+		list_del(pos);
+		printk(KERN_INFO "modlist: nodo eliminado %i\n", node->data);
+		// Libero memoria
+		vfree(node);
+		if(!node)
+			printk(KERN_INFO "modlist: memoria liberada\n");
+		// Actualizo parámetros de control
+		mem -= sizeof(list_item_t);
+		i++;
+	}
+	read_head = &mylist;
+
+	printk(KERN_INFO "modlist: lista limpia\n");
+	return i;
+}
 
 // -- GESTIÓN DE LA ENTRADA /PROC ---------------------------------
 

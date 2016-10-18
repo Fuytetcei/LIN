@@ -49,4 +49,5 @@ int mem;
 
 // Declaro funciones axiliares
 int insert (int num);
-int remove (int num);
+void remove (int num);
+int cleanup(void);
