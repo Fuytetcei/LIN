@@ -22,21 +22,43 @@
    o '\0' si ya no hay más */
 ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *off) {
 	char *auxbuff;
-	int dig, num, i;
+	int dev;
 	list_item_t *node = NULL;
 
 	/* Reservo memoria para el buffer local,
 	   10 bytes ya que son el número máximo de cifras que
 	   puede tener un tipo int 
 	*/
-	trace_printk(KERN_INFO "moslist: leyendo elemento.\n");
-	auxbuff = (char*)vmalloc(10);
-	memset(auxbuff, '\n', 10);
-	
+	auxbuff = (char*)vmalloc(11);
+	if(!auxbuff)
+		return -1;
 
-	printk(KERN_INFO "moslist: elemento leido.\n");
-	// Devuelvo 1
-	return 1;
+	/* Miro si he terminado de recorrer la lista */
+	if(read_head == &mylist){
+		memset(auxbuff, '\0', 11);
+		copy_to_user(buf, auxbuff, 11);
+		(*off) = (loff_t) filp;
+		printk(KERN_INFO "moslist: fin de lista\n");
+		return 0;
+	}
+	else {
+		/* Extraigo el elemento que corresponda */
+		node = list_entry(read_head, list_item_t, links);
+		if(!node)
+			return -EFAULT;
+
+		/* Paso de entero a carácter */
+		dev = sprintf(auxbuff, "%d\n", node->data);
+
+		/* Traspaso a espacio de usuario */
+		if(copy_to_user(buf, auxbuff, 11) == 11)
+			return -EFAULT;
+
+		(*off)+=1;
+	}
+	read_head = read_head->next;
+
+	return dev;
 };
 
 /* Esta función ejecuta operaciones sobre la lista
@@ -49,8 +71,8 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 	// Primero hago una copia desde el espacio de usuario a espacio de kernel
 		// Miro si me paso de tamaño
 		if(len > BUFFER_LENGTH-1) {
-			printk(KERN_INFO "moslist: Instrucción demasido larga.\n");
-			return 0;
+			printk(KERN_INFO "moslist: Instrucción demasiado larga.\n");
+			return -EFAULT;
 		}
 
 		// Transfiero los datos del espacio usuario al espacio kernel
@@ -69,17 +91,16 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 				printk(KERN_INFO "modlist: error al reservar memoria");
 	
 		}// Eliminar todas las apariciones de un elemento
-		//else if (sscanf(buf_modlist, "remove %i",  &num)) {
-			//if(!err = delete(num))
-				//dev = 1;
+		else if (sscanf(buff_modlist, "remove %i",  &num)) {
+			dev = remove(num);
 		//}// Eliminar todos los elementos
 		//else if (sscanf(buf_modlist, "cleanup")) {
 			//while(/* LISTA NO VACÍA */){
 				/* ELIMINAR CABEZA */
 			//}
-		//}
+		}
 		else {
-			//printk(KERN_INFO "moslist: Instrucción desconocida.\n");
+			printk(KERN_INFO "moslist: Instrucción desconocida.\n");
 			dev = 0;
 		}
 
@@ -87,12 +108,12 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 	(*off)+=len;
 
 	// Devuelvo número de datos guardados
-	return dev;
+	return len;
 	//return 1;
 };
 
 // Insertar
-int insert(int num) {
+int insert (int num) {
 	list_item_t *new = NULL;
 
 	printk(KERN_INFO "modlist: añadiendo elemento.\n");
@@ -115,14 +136,14 @@ int insert(int num) {
 
 		// Añado el nuevo nodo
 		list_add_tail(&new->links, &mylist);
-		printk(KERN_INFO "modlist: dato guardado\n");
+		printk(KERN_INFO "modlist: dato guardado %i\n", num);
 
 		// Actualizo parámetros de control
 		mem += sizeof(list_item_t);
-		numElem++;
 	}
 
-	printk(KERN_INFO "modlist: elemento añadido.\n");
+	read_head = mylist.next;
+	printk(KERN_INFO "modlist: elemento añadido\n");
 
 	return 1;
 };
@@ -133,24 +154,28 @@ int remove (int num) {
 	struct list_head *n = NULL;
 	list_item_t *node;
 
-	printk(KERN_INFO "modlist: eliminando elemento.\n");
+	printk(KERN_INFO "modlist: eliminando elemento\n");
 	// Itero hasta reencontrarme con la cabeza
 	list_for_each_safe(pos, n, &mylist){
 		// Obtengo el puntero de la estructura del nodo
 		node = list_entry(pos, list_item_t, links);
+		printk(KERN_INFO "modlist: obteniendo nodo\n");
 		// Miro si soinciden los elementos
 		if(node->data == num) {
 			// Elimino el elemento
 			list_del(pos);
+			printk(KERN_INFO "modlist: nodo eliminado %i\n", node->data);
 			// Libero memoria
-			vfree(pos);
+			vfree(node);
+			if(!node)
+				printk(KERN_INFO "modlist: memoria eliminada\n");
 			// Actualizo parámetros de control
-			mem -= BUFFER_KERNEL;
-			numElem--;
+			mem -= sizeof(list_item_t);
 		}
 	}
+	read_head = mylist.next;
 
-	printk(KERN_INFO "modlist: elemento borrado.\n");
+	printk(KERN_INFO "modlist: elemento borrado\n");
 	return 1;
 };
 
@@ -210,9 +235,6 @@ void modulo_modlist_clean(void) {
 			list_del(pos);
 			// Libero memoria
 			vfree(pos);
-			// Actualizo parámetros de control
-			mem -= BUFFER_KERNEL;
-			numElem--;
 		}
 	}
 	// Elimino la entrada a /Proc

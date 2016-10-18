@@ -47,9 +47,6 @@ typedef struct {
 // Memoria utilizada (bytes)
 int mem;
 
-// Número de elementos en la lista
-int numElem;
-
 // Declaro funciones axiliares
 int insert (int num);
 int remove (int num);
