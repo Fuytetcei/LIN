@@ -1,0 +1,20 @@
+
+ESTA CARPETA CONTIENE LA PARTE OPTATIVA 2
+
+ESTÁ FORMADA POR LOS SIGUIENTES FICHEROS:
+
+	- list.h TAD proporcionado.
+	- Makefile opciones de compilación
+	- modlist.c gestiona la carga/descarga de la entrada /proc
+	- modlistOp.h gestiona la compilación de un módulo u otro
+	  (lista de enteros o cadena de caracteres).
+	- modlist.h declaraciones de cabecera comunes a ambos módulos
+	- testChar script para testear la lista de char*
+	- testInt script para testear la lista de Int
+
+NOTA: ambos scripts contienen la sentencia de compilación condicional
+
+La diferencia con la uno e que incorpora las nuevas funciones pedidas:
+	- pop
+	- push
+	- sort
