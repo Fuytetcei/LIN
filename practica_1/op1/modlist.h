@@ -9,6 +9,7 @@
 #include <linux/proc_fs.h>	/* Para cargar y descargar módulos del kernel */
 #include <linux/string.h>	/* para tratar las cadenas */
 #include <linux/vmalloc.h>	/* Para reservar y liberar memoria e el kernel */
+#include <linux/list_sort.h>/* Para ordenar las listas */
 #include <asm-generic/uaccess.h> /* PARA QUE VALE ESTO?!!*/
 #include "list.h"
 
@@ -28,16 +29,6 @@ static struct proc_dir_entry *proc_entry; 	// Puntero al la entrada /Proc
 static char *buff_modlist;				// Buffer de alamcenamiento
 
 // -- GESTIÓN DE LA LISTA -----------------------------------------
-
-// Declaro la lista a gestionar
-/* Lista enlazada */
-struct list_head mylist;
-
-/* Guardo la cabeza de la lista además del puntero de lectura
-   que me den para ahorrarme recorrer la lista cada vez que
-   quiewra un elemento */
-struct list_head *read_head;
-
 /* Nodos de la lista */
 typedef struct {
 	int data;
@@ -48,6 +39,14 @@ typedef struct {
 	char *data;
 	struct list_head links;
 }list_char_t;
+// Declaro la lista a gestionar
+/* Lista enlazada */
+struct list_head mylist;
+
+/* Guardo la cabeza de la lista además del puntero de lectura
+   que me den para ahorrarme recorrer la lista cada vez que
+   quiewra un elemento */
+struct list_head *read_head;
 
 // Memoria utilizada (bytes)
 int mem;

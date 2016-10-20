@@ -2,6 +2,10 @@
 
 	CARGA/DESCARGA DEL MÓDULO
 
+	PREGUNTAS:
+		- INICIALIZACIÓN DE LA LISTA
+		- PERMISOS
+
 */
 
 #include "modlistOp.h"

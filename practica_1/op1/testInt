@@ -2,7 +2,7 @@
 
 make clean
 
-EXTRA_CFLAGS=-D_MODLISTINT make
+make EXTRA_CFLAGS=-D_MODLISTINT
 
 insmod modlist.ko
 
@@ -26,9 +26,8 @@ echo "add 4" > /proc/modlistInt
 cat /proc/modlistInt
 echo
 
-echo "remove 4" > /proc/modlistInt
-cat /proc/modlistInt
-echo
+
+
 echo "remove 6" > /proc/modlistInt
 cat /proc/modlistInt
 echo
@@ -44,3 +43,5 @@ cat /proc/modlistInt
 echo "cleanup"
 
 rmmod modlist
+
+make clean

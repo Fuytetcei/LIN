@@ -59,7 +59,6 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, loff_t *off) {
 
 	int dev;
-	char c = '\0';
 
 	// Primero hago una copia desde el espacio de usuario a espacio de kernel
 		// Miro si me paso de tamaño
@@ -110,9 +109,8 @@ int insert (char *c, int len) {
 	list_char_t *new = NULL;
 
 	// Miro si me queda memoria para más elementos
-	if(mem >= BUFFER_KERNEL){
+	if(mem >= BUFFER_KERNEL)
 		return 2;
-	}
 	else {
 		// Reservo memoria para el nuevo nodo
 		new = (list_char_t*)vmalloc(sizeof(list_char_t));
@@ -129,7 +127,7 @@ int insert (char *c, int len) {
 		list_add_tail(&new->links, &mylist);
 
 		// Actualizo parámetros de control
-		mem += sizeof(list_char_t+len);
+		mem += sizeof(list_char_t)+len;
 	}
 
 	read_head = mylist.next;
@@ -153,7 +151,7 @@ void remove (char *c, int len) {
 			// Elimino el elemento
 			list_del(pos);
 			// Actualizo parámetros de control
-			mem -= sizeof(list_char_t+len);
+			mem -= sizeof(list_char_t)+len;
 			// Libero memoria de la cadena y del nodo
 			vfree(node->data);
 			vfree(node);
