@@ -31,7 +31,6 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 		memset(auxbuff, '\0', 512);
 		copy_to_user(buf, auxbuff, 512);
 		(*off) = (loff_t) filp;
-		read_head = read_head->next;
 		return 0;
 	}
 	else {
@@ -211,7 +210,6 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 	if(read_head == &mylist){
 		memset(auxbuff, '\0', 11);
 		copy_to_user(buf, auxbuff, 11);
-		read_head = read_head->next;
 		(*off) = (loff_t) filp;
 		return 0;
 	}
@@ -241,7 +239,7 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 
 	int dev;
 	int num = 0;
-	char buff_modlist[512];
+	char buff_modlist[512]
 
 	// Primero hago una copia desde el espacio de usuario a espacio de kernel
 		// Miro si me paso de tamaño

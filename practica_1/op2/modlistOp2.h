@@ -40,7 +40,7 @@ void sort (void);
 /* Esta función devuelve ,por el buffer de usuario, un elemento de la lista
    o '\0' si ya no hay más */
 ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *off) {
-	char *auxbuff;
+	char auxbuff[512];
 	int dev;
 	list_char_t *node = NULL;
 
@@ -48,15 +48,13 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 	   10 bytes ya que son el número máximo de cifras que
 	   puede tener un tipo int 
 	*/
-	auxbuff = (char*)vmalloc(1024);
-	if(!auxbuff)
-		return -1;
 
 	/* Miro si he terminado de recorrer la lista */
 	if(read_head == &mylist){
-		memset(auxbuff, '\0', 1024);
-		copy_to_user(buf, auxbuff, 1024);
+		memset(auxbuff, '\0', 512);
+		copy_to_user(buf, auxbuff, 512);
 		(*off) = (loff_t) filp;
+		read_head = read_head->next;
 		return 0;
 	}
 	else {
@@ -84,6 +82,7 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, loff_t *off) {
 
 	int dev;
+	char buff_modlist[512];
 
 	// Primero hago una copia desde el espacio de usuario a espacio de kernel
 		// Miro si me paso de tamaño
@@ -347,6 +346,7 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 		memset(auxbuff, '\0', 11);
 		copy_to_user(buf, auxbuff, 11);
 		(*off) = (loff_t) filp;
+		read_head = read_head->next;
 		return 0;
 	}
 	else {
@@ -366,6 +366,8 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 	}
 	read_head = read_head->next;
 
+	vfree(auxbuff);
+
 	return dev;
 };
 
@@ -375,6 +377,7 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 
 	int dev;
 	int num = 0;
+	char buff_modlist[512];
 
 	// Primero hago una copia desde el espacio de usuario a espacio de kernel
 		// Miro si me paso de tamaño

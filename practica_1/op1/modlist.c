@@ -4,7 +4,6 @@
 
 	PREGUNTAS:
 		- INICIALIZACIÓN DE LA LISTA
-		- PERMISOS
 
 */
 
@@ -18,21 +17,11 @@ static const struct file_operations fops = {
 
 // Carga del módulo
 int modulo_modlist_init(void) {
-	// Reservo memoria para el buffer
-	buff_modlist = (char *)vmalloc(BUFFER_LENGTH);
-	if(!buff_modlist) {
-		printk(KERN_INFO "modlist: No se pudo reservar memoria.\n");
-		return -ENOMEM;
-	}
-
-	// PARA QUE VALÍA ESTO??!!
-	memset(buff_modlist, '\0', BUFFER_LENGTH);
 
 	// Creo la entrada a /Proc
 	proc_entry = proc_create(modname, 0666, NULL, &fops);
 	if(!proc_entry) {
 		// Si hay error libero memoria y salgo con error
-		vfree(buff_modlist);
 		printk(KERN_INFO "%s: No se pudo crear entrada /proc.\n", modname);
 		return -ENOMEM;
 	}
@@ -67,7 +56,6 @@ void modulo_modlist_clean(void) {
 	// Elimino la entrada a /Proc
 	remove_proc_entry(modname, NULL);
 	// Libero memoria
-	vfree(buff_modlist);
 	printk(KERN_INFO "%s: descargado.\n", modname);
 };
 

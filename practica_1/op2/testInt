@@ -30,6 +30,7 @@ echo "push 8" > /proc/modlistInt
 echo "pop"
 echo
 echo "pop" > /proc/modlistInt
+echo "remove 4"
 echo "remove 4" > /proc/modlistInt
 
 cat /proc/modlistInt

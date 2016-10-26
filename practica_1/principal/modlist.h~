@@ -9,8 +9,7 @@
 #include <linux/proc_fs.h>	/* Para cargar y descargar módulos del kernel */
 #include <linux/string.h>	/* para tratar las cadenas */
 #include <linux/vmalloc.h>	/* Para reservar y liberar memoria e el kernel */
-#include <asm-generic/uaccess.h>
-#include <linux/list_sort.h>
+#include <asm-generic/uaccess.h> /* PARA QUE VALE ESTO?!!*/
 #include "list.h"
 
 MODULE_LICENSE("GPL");		/* Licencia del módulo */
@@ -26,7 +25,7 @@ MODULE_AUTHOR("Daniel y Manuel");
 
 
 static struct proc_dir_entry *proc_entry; 	// Puntero al la entrada /Proc
-//static char *buff_modlist;				// Buffer de alamcenamiento
+static char *buff_modlist;				// Buffer de alamcenamiento
 
 // -- GESTIÓN DE LA LISTA -----------------------------------------
 
@@ -39,5 +38,16 @@ struct list_head mylist;
    quiewra un elemento */
 struct list_head *read_head;
 
+/* Nodos de la lista */
+typedef struct {
+	int data;
+	struct list_head links;
+}list_item_t;
+
 // Memoria utilizada (bytes)
 int mem;
+
+// Declaro funciones axiliares
+int insert (int num);
+void remove (int num);
+int cleanup(void);

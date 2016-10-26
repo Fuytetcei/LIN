@@ -1,5 +1,9 @@
 #/bin/bash
 
+make clean
+
+make
+
 insmod modlist.ko
 
 cat /proc/modlist
@@ -21,6 +25,8 @@ echo "add 4" > /proc/modlist
 
 cat /proc/modlist
 echo
+cat /proc/modlist
+echo
 
 echo "remove 4" > /proc/modlist
 cat /proc/modlist
@@ -40,3 +46,5 @@ cat /proc/modlist
 echo "cleanup"
 
 rmmod modlist
+
+make clean

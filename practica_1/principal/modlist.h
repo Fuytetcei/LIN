@@ -9,7 +9,7 @@
 #include <linux/proc_fs.h>	/* Para cargar y descargar módulos del kernel */
 #include <linux/string.h>	/* para tratar las cadenas */
 #include <linux/vmalloc.h>	/* Para reservar y liberar memoria e el kernel */
-#include <asm-generic/uaccess.h> /* PARA QUE VALE ESTO?!!*/
+#include <asm-generic/uaccess.h>
 #include "list.h"
 
 MODULE_LICENSE("GPL");		/* Licencia del módulo */
@@ -21,11 +21,11 @@ MODULE_AUTHOR("Daniel y Manuel");
 
 /* Tamaño del buffer del kernel, para controlar el tamaño de la lista.
    Solo hasta la mitad */
-#define BUFFER_KERNEL 4096
+#define BUFFER_KERNEL 2048
 
 
 static struct proc_dir_entry *proc_entry; 	// Puntero al la entrada /Proc
-static char *buff_modlist;				// Buffer de alamcenamiento
+// static char *buff_modlist;					// Buffer de alamcenamiento
 
 // -- GESTIÓN DE LA LISTA -----------------------------------------
 

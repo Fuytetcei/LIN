@@ -23,7 +23,7 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 		memset(auxbuff, '\0', 11);
 		copy_to_user(buf, auxbuff, 11);
 		(*off) = (loff_t) filp;
-		read_head = read_head->next;
+		read_head = read_head.next;
 		return 0;
 	}
 	else {

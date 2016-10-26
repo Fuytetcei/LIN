@@ -2,9 +2,13 @@
 
 	CARGA/DESCARGA DEL MÓDULO
 
+	PREGUNTAS:
+		- INICIALIZACIÓN DE LA LISTA
+		- PERMISOS
+
 */
 
-#include "modlistOp2.h"
+#include "modlistOp.h"
 
 // Asigno las funciones necesarias para operar con la entrada
 static const struct file_operations fops = {
@@ -14,10 +18,21 @@ static const struct file_operations fops = {
 
 // Carga del módulo
 int modulo_modlist_init(void) {
+	// Reservo memoria para el buffer
+	buff_modlist = (char *)vmalloc(BUFFER_LENGTH);
+	if(!buff_modlist) {
+		printk(KERN_INFO "modlist: No se pudo reservar memoria.\n");
+		return -ENOMEM;
+	}
+
+	// PARA QUE VALÍA ESTO??!!
+	memset(buff_modlist, '\0', BUFFER_LENGTH);
 
 	// Creo la entrada a /Proc
 	proc_entry = proc_create(modname, 0666, NULL, &fops);
 	if(!proc_entry) {
+		// Si hay error libero memoria y salgo con error
+		vfree(buff_modlist);
 		printk(KERN_INFO "%s: No se pudo crear entrada /proc.\n", modname);
 		return -ENOMEM;
 	}
@@ -43,7 +58,7 @@ void modulo_modlist_clean(void) {
 	// Libero la memoria de la lista si no está vacía
 	if(list_empty(&mylist)){
 		list_for_each_safe(pos, n, &mylist){
-			// Elimino el elemento
+			//clear Elimino el elemento
 			list_del(pos);
 			// Libero memoria
 			vfree(pos);
@@ -51,6 +66,8 @@ void modulo_modlist_clean(void) {
 	}
 	// Elimino la entrada a /Proc
 	remove_proc_entry(modname, NULL);
+	// Libero memoria
+	vfree(buff_modlist);
 	printk(KERN_INFO "%s: descargado.\n", modname);
 };
 
