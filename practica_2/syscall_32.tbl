@@ -367,3 +367,6 @@
 
 #	Parte B: ledctl()
 354	common	lin_ledctl_i386		sys_lin_ledctl
+
+#	Parte C: lin_blinkstick
+355	common	lin_blinkstick		sys_lin_blinkstick
