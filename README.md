@@ -5,4 +5,4 @@ Exercises for LIN (Advance Linux and Android) subject.
     This practice involves the construction and installation of a new kernel module that creates
     a new "/Proc" entry that manages a linked list.
 
-  Practice 2, kernel sys calls.
+  Practice 2, kernel sys calls and USB drivers.
