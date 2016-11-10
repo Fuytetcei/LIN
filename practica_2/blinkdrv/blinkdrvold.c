@@ -111,69 +111,57 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
 {
 	struct usb_blink *dev=file->private_data;
 	int retval = 0;
-	int i, j;
-	unsigned char message [NR_LEDS] [NR_BYTES_BLINK_MSG];
+	int i=0;
+	unsigned char message[NR_BYTES_BLINK_MSG];
 	char buff[len+1];	
-	int led=0;		// Índice de lectura de user_buff
+	int led=0;				// Índice de lectura de user_buff
+	unsigned int num1, num2;// Auxiliares para pasar los colores
 	static int color_cnt=0;
 
 	/* Paso la entrada del usuario al kernel */
 	buff[len] = '\0';
-	if(copy_from_user(buff, user_buffer, len)) {
-		printk(KERN_ALERT "Error al copiar de usuario");
+	if(!copy_from_user(buff, user_buffer, len))
 		return -EINVAL;
-	}
-
+	
 	/* zero fill*/
 	memset(message,0,NR_BYTES_BLINK_MSG);
 
-	/* Procesamiento de la cadena */
-
-	for(i=0, led=0;i<NR_LEDS;i++)
-		if (buff[(led*10)+led]!=(i+'0'))
-			for(j=0;j<NR_BYTES_BLINK_MSG;j++){
-				message[i][j] = buff[(led*10)+led+j+4];
-				led++;
-			}
-
-	/* Fin procesamiento */
-
 	/* Proceso del mensaje a enviar */
-	// for (i=0, led=0;i<8;i++) {
+	for (i=0, led=0;i<8;i++){
 
-		// /* Parseo la entrada */
-		// // Miro si hay que rellenar con negro o no
-		// if(buff[(led*10)+led]!=(i+'0')) {
-		// 	/* Relleno el mensaje con el color que toque */
-		// 	message[0]='\x05';
-		// 	message[1]=0x00;
-		// 	message[2]=i; // Miro el led que quiero cambiar
-		// 	message[3]=0x0;
-		//  	message[4]=0x0;
-		//  	message[5]=0x0; /* Asigno todo negro */
-		// } else {
-		// 	/* Relleno el mensaje con el color que toque */
+		/* Parseo la entrada */
+		// Miro si hay que rellenar con negro o no
+		if(buff[(led*10)+led]!=(i+'0')) {
+			/* Relleno el mensaje con el color que toque */
+			message[0]='\x05';
+			message[1]=0x00;
+			message[2]=i; // Miro el led que quiero cambiar
+			message[3]=0x0;
+		 	message[4]=0x0;
+		 	message[5]=0x0; /* Asigno todo negro */
+		} else {
+			/* Relleno el mensaje con el color que toque */
+			message[0]='\x05';
+			message[1]=0x00;
+			message[2] = i; // Miro el led que quiero cambiar
+			num1 = buff[(led*10)+led+4];
+			num2 = buff[(led*10)+led+5];
+			message[3]=(num1 & num2 & 0xff);
+			num1 = buff[(led*10)+led+6];
+			num2 = buff[(led*10)+led+7];
+		 	message[4]=(num1 & num2 & 0xff);
+		 	num1 = buff[(led*10)+led+8];
+			num2 = buff[(led*10)+led+9];
+		 	message[5]=(num1 & num2 & 0xff); /* Asigno los colores que necesite */
+			led++;
+		}
 
-		// 	message[0]='\x05';
-		// 	message[1]=0x00;
-		// 	message[2] = i; // Miro el led que quiero cambiar
-		// 	message[3] = buff[(led*10)+led+4]-'0';
-		// 	message[3] += (buff[(led*10)+led+5]-'0')*10;
-		// 	message[4] = buff[(led*10)+led+6]-'0';
-		// 	message[4] += (buff[(led*10)+led+7]-'0')*10;
-		// 	message[5] = buff[(led*10)+led+8]-'0';
-		// 	message[5] += (buff[(led*10)+led+9]-'0')*10;
-			
-		// 	 /* Asigno los colores que necesite */
-		// 	led++;
-		// }
-
-		// 1:0xXXYYZZ,2:0xXXYYZZ,3:0xXXYYZZ
 	 	/*
 
 			- ¿¿message[2] es entero o char??
 
 	 	*/
+
 
 		/* 
 		 * Send message (URB) to the Blinkstick device 

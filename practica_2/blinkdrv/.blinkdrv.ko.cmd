@@ -1,0 +1,1 @@
+cmd_/datos/VM/lin/LIN/practica_2/blinkdrv/blinkdrv.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /datos/VM/lin/LIN/practica_2/blinkdrv/blinkdrv.ko /datos/VM/lin/LIN/practica_2/blinkdrv/blinkdrv.o /datos/VM/lin/LIN/practica_2/blinkdrv/blinkdrv.mod.o

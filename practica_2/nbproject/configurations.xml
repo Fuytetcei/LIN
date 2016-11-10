@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="100">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <df root="." name="0">
+      <df name="blinkdrv">
+        <in>blinkdrv.mod.c</in>
+        <in>blinkdrvold.c</in>
+      </df>
+      <in>blinkdrv.c</in>
+      <in>blinkstick.c</in>
+      <in>hola_mundo.c</in>
+      <in>ledctl.c</in>
+    </df>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+      <itemPath>nbproject/private/launcher.properties</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
+  <sourceRootList>
+    <Elem>.</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>false</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <flagsDictionary>
+        <element flagsID="0"
+                 commonFlags="-m64 -mtune=generic -march=x86-64 -g -O2 -std=gnu90 -fstack-protector-strong"/>
+      </flagsDictionary>
+      <codeAssistance>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>${MAKE}</buildCommand>
+          <cleanCommand>${MAKE} clean</cleanCommand>
+          <executablePath></executablePath>
+        </makeTool>
+        <preBuild>
+          <preBuildCommandWorkingDir>.</preBuildCommandWorkingDir>
+          <preBuildCommand></preBuildCommand>
+        </preBuild>
+      </makefileType>
+      <item path="blinkdrv.c" ex="false" tool="0" flavor2="2">
+      </item>
+      <item path="blinkdrv/blinkdrv.mod.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/asm-generic</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/asm-generic</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/linux</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/asm</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/linux</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/asm/fpu</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/uapi/asm</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/video</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/video</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/xen</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/asm/xen</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/xen/interface</pElem>
+            <pElem>blinkdrv</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="blinkdrv/blinkdrvold.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>blinkdrv</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/linux</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/asm</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/asm-generic</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/asm-generic</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/linux</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/asm/fpu</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/uapi/asm</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/video</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/video</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/xen</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include/asm/xen</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/xen/interface</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/linux/pinctrl</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi/linux/usb</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/include/uapi</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64/arch/x86/include</pElem>
+            <pElem>/usr/src/kernels/4.8.6-201.fc24.x86_64</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="blinkstick.c" ex="false" tool="0" flavor2="2">
+      </item>
+      <item path="hola_mundo.c" ex="false" tool="0" flavor2="2">
+      </item>
+      <item path="ledctl.c" ex="false" tool="0" flavor2="2">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
