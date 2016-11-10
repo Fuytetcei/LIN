@@ -111,8 +111,8 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
     unsigned char message[NR_LEDS][NR_BYTES_BLINK_MSG]; //matriz de mensajes
     bool esta[NR_LEDS]; //variable de comprobacion de relleno
     char buff[len + 1];
-    bool salir = false;
-
+    char aux[10];
+    int k = 0;
     /*ponemos los bool a false*/
     for (i = 0; i < NR_LEDS; i++) {
         buff[i] = false;
@@ -129,9 +129,15 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
     if (!copy_from_user(buff, user_buffer, len))
         return -EINVAL;
     /*rellenamos la matriz*/
-    char aux[10] = strsep(buff, ',');
 
-    while (aux[0] != '/0' && !salir) {
+
+    while (k <= len) {
+        for(i = 0; i<10;i++)
+        {
+            aux[i] = buff[k];
+            k++;
+        }
+        
         //comprobamos la entrada
         //miro si es numero
         if (!(aux[0] >= '0' && aux[0] <= '7')) {
@@ -143,7 +149,7 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
             return -EINVAL;
         }
         //miramos el formato
-        if (!(aux[1] == ':' && aux[2] == '0' && aux[3] = 'x')) {
+        if (!(aux[1] == ':' && aux[2] == '0' && aux[3] == 'x')) {
             return -EINVAL;
         }
         //miramos que sea un hexadecimal
@@ -161,7 +167,8 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
         message[aux[0]][4] = (aux[6] & aux[7] & 0xff);
         message[aux[0]][5] = (aux [8] & aux [9]& 0xff);
         esta[aux[0]] = true;
-
+        
+        k++;
     }
 
 
@@ -193,13 +200,13 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
         printk(KERN_ALERT "Executed with retval=%d\n", retval);
         goto out_error;
     }
-}
 
-(*off) += len;
-return len;
+
+    (*off) += len;
+    return len;
 
 out_error:
-return retval;
+    return retval;
 }
 
 
