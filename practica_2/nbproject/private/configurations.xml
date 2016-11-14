@@ -6,10 +6,10 @@
         <df name=".tmp_versions">
           <in>blinkdrv.mod</in>
         </df>
+        <in>blinkdrv.c</in>
         <in>blinkdrv.mod.c</in>
         <in>blinkdrvold.c</in>
       </df>
-      <in>blinkdrv.c</in>
       <in>blinkdrvOriginal.c</in>
       <in>blinkstick.c</in>
       <in>hola_mundo.c</in>
