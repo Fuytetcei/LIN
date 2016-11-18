@@ -12,6 +12,8 @@
 #include <linux/kd.h>       /* For KDSETLED */
 #include <linux/vt_kern.h>
 
+struct tty_driver *driver=NULL;
+
 /* Obtengo el handler del driver */
 struct tty_driver* get_kbd_driver_handler(void){
    return vc_cons[fg_console].d->port.tty->driver;
@@ -27,7 +29,8 @@ SYSCALL_DEFINE1 (lin_ledctl, unsigned int, leds) {
 	   y lo paso a set_leds */
 	if (leds > 7)
 		return -EINVAL;
-   	set_leds(get_kbd_driver_handler(),mask);
-	return 0;
+	printk(KERN_INFO "ledctl: máscara -> %d", leds);
+	driver = get_kbd_driver_handler();
+   	return set_leds(driver,leds);
 }
 
