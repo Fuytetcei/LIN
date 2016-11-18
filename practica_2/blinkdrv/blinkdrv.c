@@ -108,20 +108,22 @@ unsigned int sample_colors[]={0x000011, 0x110000, 0x001100, 0x000000};
 /* Called when a user program invokes the write() system call on the device */
 static ssize_t blink_write(struct file *file, const char *user_buffer,
         size_t len, loff_t *off) {
+
     struct usb_blink *dev = file->private_data;
     int retval = 0;
-    int i = 0;
+    int i = 0, j;
     unsigned char message[NR_LEDS][NR_BYTES_BLINK_MSG]; //matriz de mensajes
     bool esta[NR_LEDS]; //variable de comprobacion de relleno
     char buff[len + 1];
     char aux[10];
     int k = 0;
+
     /*ponemos los bool a false*/
     for (i = 0; i < NR_LEDS; i++) {
-        buff[i] = false;
+        esta[i] = false;
         message[i][0] = '\x05';
         message[i][1] = 0x00;
-        message[i][2] = i; // Miro el led que quiero cambiar
+        message[i][2] = (unsigned int) i; // Miro el led que quiero cambiar
         message[i][3] = 0x0;
         message[i][4] = 0x0;
         message[i][5] = 0x0; /* Asigno todo negro */
@@ -129,46 +131,52 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
 
     /* Paso la entrada del usuario al kernel */
     buff[len] = '\0';
-    if (!copy_from_user(buff, user_buffer, len))
+    if (copy_from_user(buff, user_buffer, len))
         return -EINVAL;
     /*rellenamos la matriz*/
 
 
-    while (k <= len) {
+    while (k<(len-1)) {
         for(i = 0; i<10;i++)
         {
             aux[i] = buff[k];
             k++;
         }
-        
+        printk(KERN_INFO "%s\n", aux);
         //comprobamos la entrada
         //miro si es numero
-        if (!(aux[0] >= '0' && aux[0] <= '7')) {
 
+        if (!(aux[0] >= '0' && aux[0] <= '7')) {
+		printk(KERN_INFO "caracter uno no es un numero -%c-\n",aux[0] );
             return -EINVAL;
         }
         //miro si se repite el led
         if (esta[aux[0]- '0'] == true) {
+
+		printk(KERN_INFO "el led ya esta\n");
             return -EINVAL;
         }
         //miramos el formato
         if (!(aux[1] == ':' && aux[2] == '0' && aux[3] == 'x')) {
-            return -EINVAL;
+
+		printk(KERN_INFO "formato erroneo\n");            
+		return -EINVAL;
         }
         //miramos que sea un hexadecimal
         for (i = 4; i <= 9; i++) {
-            if (!((aux[i] >= '0' && aux[i] <= '9') || (aux[i] >= 'A' && aux[i] <= 'F'))) {
+            if (!((aux[i] >= '0' && aux[i] <= '9') || (aux[i] >= 'A' && aux[i] <= 'F') || (aux[i] >= 'a' && aux[i] <= 'f'))) {
 
+		printk(KERN_INFO "no es hexadecimal\n");
                 return -EINVAL;
             }
         }
 
-
+	j = (int) aux[0]-'0';
         //rellenamos mensaje
-
-        message[aux[0]- '0'][3] = (aux[4] & aux[5] & 0xff);
-        message[aux[0]- '0'][4] = (aux[6] & aux[7] & 0xff);
-        message[aux[0]- '0'][5] = (aux [8] & aux [9]& 0xff);
+	printk(KERN_INFO "Escribiendo en led: %d\n", j);
+        message[j][3] = ((aux[4]-'0') & (aux[5]-'0') & 0xff);
+        message[j][4] = ((aux[6]-'0') & (aux[7]-'0') & 0xff);
+        message[j][5] = ((aux[8]-'0') & (aux[9]-'0') & 0xff);
         esta[aux[0]- '0'] = true;
         
         k++;
@@ -178,7 +186,7 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
     /* Fill up the message accordingly */
     /*message[0] = '\x05';
     message[1] = 0x00;
-    message[2] = 0;
+    message[2] = 0;*/
 
     for (i = 0; i < NR_LEDS; i++) {
 
@@ -197,6 +205,7 @@ static ssize_t blink_write(struct file *file, const char *user_buffer,
             message[i], /* Pointer to the message */
             NR_BYTES_BLINK_MSG, /* message's size in bytes */
             0);
+    }
 
     if (retval < 0) {
         printk(KERN_ALERT "Executed with retval=%d\n", retval);
