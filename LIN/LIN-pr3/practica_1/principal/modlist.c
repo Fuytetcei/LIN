@@ -1,0 +1,231 @@
+/*
+
+	PARTE PRINCIPAL DE LA PRÁCTICA 1
+
+*/
+
+#include "modlist.h"
+
+/* Esta función devuelve ,por el buffer de usuario, un elemento de la lista
+   o '\0' si ya no hay más */
+ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *off) {
+	char auxbuff[11];
+	int dev;
+	list_item_t *node = NULL;
+
+	/* Reservo memoria para el buffer local,
+	   10 bytes ya que son el número máximo de cifras que
+	   puede tener un tipo int 
+	*/
+
+	/* Miro si he terminado de recorrer la lista */
+	if(read_head == &mylist){
+		memset(auxbuff, '\0', 11);
+		copy_to_user(buf, auxbuff, 11);
+		(*off) = (loff_t) filp;
+		read_head = read_head->next;
+		return 0;
+	}
+	else {
+		/* Extraigo el elemento que corresponda */
+		node = list_entry(read_head, list_item_t, links);
+		if(!node)
+			return -EFAULT;
+
+		/* Paso de entero a carácter */
+		dev = sprintf(auxbuff, "%d\n", node->data);
+
+		/* Traspaso a espacio de usuario */
+		if(copy_to_user(buf, auxbuff, 11) == 11)
+			return -EFAULT;
+
+		(*off)+=1;
+	}
+	read_head = read_head->next;
+
+	return dev;
+};
+
+
+/* Esta función ejecuta operaciones sobre la lista
+   según una serie de instrucciones previamente parseadas. */
+ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, loff_t *off) {
+
+	int dev;
+	int num = 0;
+	char buff_modlist[1024];
+
+	// Primero hago una copia desde el espacio de usuario a espacio de kernel
+		// Miro si me paso de tamaño
+		if(len > BUFFER_LENGTH-1) {
+			printk(KERN_INFO "moslist: Instrucción demasiado larga.\n");
+			return -EFAULT;
+		}
+
+		// Transfiero los datos del espacio usuario al espacio kernel
+		if(copy_from_user(&buff_modlist[0], buf, len))
+			return -EFAULT;
+
+	// Parseo la entrada y ejecuto la orden que corresponda
+		// Insertar al final
+		if(sscanf(buff_modlist, "add %i", &num) == 1){
+			dev = insert(num);
+			if(dev == 2) {
+				dev = 0;
+				printk(KERN_INFO "modlist: no hay suficiente memoria");
+			}
+			else if(!dev)
+				printk(KERN_INFO "modlist: error al reservar memoria");
+	
+		}// Eliminar todas las apariciones de un elemento
+		else if (sscanf(buff_modlist, "remove %i",  &num))
+			remove(num);
+		// Eliminar todos los elementos
+		else {
+			sscanf(buff_modlist, "%s", buff_modlist);
+			if(!strcmp(buff_modlist, "cleanup")) {
+				dev = cleanup();
+			}
+			else {
+				printk(KERN_INFO "moslist: Instrucción desconocida.\n");
+				dev = 0;
+			}
+		}
+	// Actualizo punteros
+	(*off)+=len;
+
+	// Devuelvo número de datos guardados
+	return len;
+	//return 1;
+};
+
+// Insertar
+int insert (int num) {
+	list_item_t *new = NULL;
+
+	// Miro si me queda memoria para más elementos
+	if(mem >= BUFFER_KERNEL){
+		return 2;
+	}
+	else {
+		// Reservo memoria para el nuevo nodo
+		new = (list_item_t*)vmalloc(sizeof(list_item_t));
+		if(!new)
+			return 0;
+		// Asigno el nuevo dato
+		new->data = num;
+
+		// Añado el nuevo nodo
+		list_add_tail(&new->links, &mylist);
+
+		// Actualizo parámetros de control
+		mem += sizeof(list_item_t);
+	}
+
+	read_head = mylist.next;
+
+	return 1;
+};
+
+// Eliminar
+void remove (int num) {
+	struct list_head *pos = NULL;
+	struct list_head *n = NULL;
+	list_item_t *node;
+
+	// Itero hasta reencontrarme con la cabeza
+	list_for_each_safe(pos, n, &mylist){
+		// Obtengo el puntero de la estructura del nodo
+		node = list_entry(pos, list_item_t, links);
+		// Miro si soinciden los elementos
+		if(node->data == num) {
+			// Elimino el elemento
+			list_del(pos);
+			// Libero memoria
+			vfree(node);
+			// Actualizo parámetros de control
+			mem -= sizeof(list_item_t);
+		}
+	}
+	read_head = mylist.next;
+};
+
+/* Limpiar lista */
+int cleanup() {
+	struct list_head *pos = NULL;
+	struct list_head *n = NULL;
+	list_item_t *node;
+	int i = 0;
+
+	// Itero hasta reencontrarme con la cabeza
+	list_for_each_safe(pos, n, &mylist){
+		// Obtengo el puntero de la estructura del nodo
+		node = list_entry(pos, list_item_t, links);
+		// Elimino el elemento
+		list_del(pos);
+		// Libero memoria
+		vfree(node);
+		if(!node)
+		// Actualizo parámetros de control
+		mem -= sizeof(list_item_t);
+		i++;
+	}
+	read_head = &mylist;
+
+	return i;
+}
+
+// -- GESTIÓN DE LA ENTRADA /PROC ---------------------------------
+
+// Asigno las funciones necesarias para operar con la entrada
+static const struct file_operations fops = {
+	.read = read_modlist,
+	.write = write_modlist,
+};
+
+// Carga del módulo
+int modulo_modlist_init(void) {
+
+	// Creo la entrada a /Proc
+	proc_entry = proc_create("modlist", 0666, NULL, &fops);
+	if(!proc_entry) {
+		// Si hay error libero memoria y salgo con error
+		printk(KERN_INFO "modlist: No se pudo crear entrada /proc.\n");
+		return -ENOMEM;
+	}
+	printk(KERN_INFO "modlist: entrada /proc creada.\n");
+
+	// Inicializo la cabeza de la lista
+	//LIST_HEAD(mylist);
+	//INIT_LIST_HEAD(&mylist);
+	mylist.prev = &mylist;
+	mylist.next = &mylist;
+	// Inicializo la cabeza de lectura
+	read_head = &mylist;
+
+	/* Devolver 0 para indicar una carga correcta del módulo */
+	return 0;
+};
+
+// Descarga del módulo
+void modulo_modlist_clean(void) {
+	struct list_head *pos = NULL;
+	struct list_head *n = NULL;
+
+	// Libero la memoria de la lista si no está vacía
+	if(list_empty(&mylist)){
+		list_for_each_safe(pos, n, &mylist){
+			//clear Elimino el elemento
+			list_del(pos);
+			// Libero memoria
+			vfree(pos);
+		}
+	}
+	// Elimino la entrada a /Proc
+	remove_proc_entry("modlist", NULL);
+	printk(KERN_INFO "modlist: descargado.\n");
+};
+
+/* Declaración de funciones init y cleanup */
+module_init(modulo_modlist_init);
+module_exit(modulo_modlist_clean);
