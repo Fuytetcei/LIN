@@ -1,8 +1,0 @@
-#!/bin/bash
-while true
-do
-	for i in 'seq 1 10';
-	do
-		echo "add $i" > /proc/modlistInt
-	done
-done
