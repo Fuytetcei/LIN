@@ -1,0 +1,3 @@
+!#/bin/bash
+# Miro el contenido del fichero cada dos segundos
+watch cat /proc/modlist

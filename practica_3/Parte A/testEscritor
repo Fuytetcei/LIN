@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Insertamos el valor del contador de 0 a 19,
+# cuando i >= 20 eliminamos los elementos.
+
+i=0
+while true
+do
+	if (($i < 20)); then
+		echo add $i > /proc/modlist
+	else
+		echo remove $i > /proc/modlist
+	fi
+	((i++))
+	i=$((i%40))
+done
