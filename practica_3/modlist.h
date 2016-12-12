@@ -5,6 +5,7 @@
 */
 
 #include <linux/module.h>	/* Requerido por todos los módulos */
+#include <linux/unistd.h>
 #include <linux/kernel.h>	/* Definición de KERN_INFO */
 #include <linux/proc_fs.h>	/* Para cargar y descargar módulos del kernel */
 #include <linux/string.h>	/* para tratar las cadenas */
@@ -18,7 +19,7 @@ MODULE_DESCRIPTION("modlist Kernel Module - LIN-FDI-UCM");
 MODULE_AUTHOR("Daniel y Manuel");
 
 // Tamaño del buffer de entrada desde el espacio de usuario
-#define BUFFER_LENGTH 256
+#define BUFFER_LENGTH 512
 
 /* Tamaño del buffer del kernel, para controlar el tamaño de la lista.
    Solo hasta la mitad */

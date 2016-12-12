@@ -13,22 +13,23 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 	int dev;
 	list_item_t *node = NULL;
 
-	//BLOQUEO
+	// Entro en la sección crítica
 	spin_lock(&mtx);	
 	/* Miro si he terminado de recorrer la lista */
-	if(read_head == &mylist){
+	if(read_head == &mylist) {
 		memset(auxbuff, '\0', 11);
 		copy_to_user(buf, auxbuff, 11);
 		(*off) = (loff_t) filp;
 		read_head = read_head->next;
-			spin_unlock(&mtx);
+		// Desbloqueo, fin de fichero
+		spin_unlock(&mtx);
 		return 0;
 	}
 	else {
 		/* Extraigo el elemento que corresponda */
 		node = list_entry(read_head, list_item_t, links);
-		if(!node)
-		{
+		if(!node) {
+			// Desbloqueo en caso de error
 			spin_unlock(&mtx);
 			return -EFAULT;
 		}
@@ -36,14 +37,15 @@ ssize_t read_modlist(struct file *filp, char __user *buf, size_t len, loff_t *of
 		dev = sprintf(auxbuff, "%d\n", node->data);
 
 		/* Traspaso a espacio de usuario */
-		if(copy_to_user(buf, auxbuff, 11) == 11)
-			{
-				spin_unlock(&mtx);
-				return -EFAULT;
-			}
+		if(copy_to_user(buf, auxbuff, 11) == 11) {
+			// Desbloqueo en caso de error
+			spin_unlock(&mtx);
+			return -EFAULT;
+		}
 		(*off)+=1;
 	}
 	read_head = read_head->next;
+	// Fin de la sección crítica
 	spin_unlock(&mtx);
 	return dev;
 };
@@ -55,7 +57,7 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 
 	int dev;
 	int num = 0;
-	char buff_modlist[1024];
+	char buff_modlist[512];
 
 	// Primero hago una copia desde el espacio de usuario a espacio de kernel
 		// Miro si me paso de tamaño
@@ -104,23 +106,26 @@ ssize_t write_modlist(struct file *filp, const char __user *buf, size_t len, lof
 
 // Insertar
 int insert (int num) {
+	// Reservamos memoria por siacaso fuera de la sección crítica
 	list_item_t *new = (list_item_t*)vmalloc(sizeof(list_item_t));
-	//bloqueamos mutex
+
+
+	// Inicio de la sección crítica
 	spin_lock(&mtx);
 	// Miro si me queda memoria para más elementos
-	if(mem >= BUFFER_KERNEL){
-
-	//liberamos mutex
-	spin_unlock(&mtx);
-	vfree(new);		
-return 2;
+	if(mem >= BUFFER_KERNEL) {
+		//liberamos en caso de error
+		spin_unlock(&mtx);
+		// Liberamos memoria fuera de la sección crítica
+		vfree(new);		
+		return 2;
 		
 	}
 	else {
 		// Reservo memoria para el nuevo nodo
 		
-		if(!new)
-		{
+		if(!new){
+			// Liberamos en caso de error
 			spin_unlock(&mtx);	
 			return 0;
 		}
@@ -134,7 +139,7 @@ return 2;
 		mem += sizeof(list_item_t);
 		
 		read_head = mylist.next;
-		//liberamos mutex
+		// Fin de la sección crítica
 		spin_unlock(&mtx);
 	}
 
@@ -151,8 +156,15 @@ void remove (int num) {
 	struct list_head aux;
 	aux.next = &aux;
 	aux.prev = &aux;
-	// Itero hasta reencontrarme con la cabeza
-	//BLOQUEO
+/*
+*
+*	PARA ELIMINAR TODAS LAS APARICIONES DE UN NÚMERO VAMOS A MOVER EL NÚMERO EN CUESTIÓN
+*	DE LA LISTA PRINCIPAL (DATO GLOBAL) A UNA LOCAL PARA DESALOJAR LA MEMORIA FUERA
+*	DE LA SECCIÓN CRÍTICA. EN DEFINITIVA SOLO MOVEMOS PUNTEROS EN LA SECCIÓN CRÍTICA
+*	PARA LIBERAR FUERA DE ELLA.
+*
+*/
+	// Inicio de la sección crítica
 	spin_lock(&mtx);
 	list_for_each_safe(pos, n, &mylist){
 		// Obtengo el puntero de la estructura del nodo
@@ -161,19 +173,19 @@ void remove (int num) {
 		if(node->data == num) {
 			// Elimino el elemento
 			list_del(pos);
+			// Lo añado a la lista local
 			list_add(pos,&aux);
 			// Actualizo parámetros de control
 			mem -= sizeof(list_item_t);
 		}
 	}
 	read_head = mylist.next;
-	//LIBERAMOS
+	// Fin de la sección crítica
 	spin_unlock(&mtx);
 
-	pos = NULL;
-	n=NULL;
-	list_for_each_safe(pos,n,&aux)
-	{
+	// Itero la lista local para liberar la memoria
+	pos = NULL; n=NULL;
+	list_for_each_safe(pos,n,&aux) {
 		node = list_entry(pos, list_item_t, links);
 		vfree(node);
 	}

@@ -1,0 +1,1 @@
+cmd_/home/kernel/Documentos/LIN/practica_3/modlist.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.14.1.lin/scripts/module-common.lds --build-id  -o /home/kernel/Documentos/LIN/practica_3/modlist.ko /home/kernel/Documentos/LIN/practica_3/modlist.o /home/kernel/Documentos/LIN/practica_3/modlist.mod.o

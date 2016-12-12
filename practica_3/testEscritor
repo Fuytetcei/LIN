@@ -1,0 +1,15 @@
+#!/bin/bash
+
+i=0
+while true
+do
+	if (($i < 20)); then
+		echo "MENOR"
+		echo add $i > /proc/modlist
+	else
+		echo "MAYOR"
+		echo remove $i > /proc/modlist
+	fi
+	((i++))
+	i=$((i%40))
+done

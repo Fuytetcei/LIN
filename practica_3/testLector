@@ -1,0 +1,7 @@
+!#/bin/bash
+while true
+do
+	#strace cat /proc/modlist
+	cat /proc/modlist
+	echo "leido"
+done
