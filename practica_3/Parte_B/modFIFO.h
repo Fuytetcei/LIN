@@ -4,16 +4,10 @@
 
 */
 
-#include <getopt.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <err.h>
-#include <errno.h>
+#ifndef _MODFIFOH
+	#define _MODFIFOH
+
+//#include <sys/stat.h>
 #include <linux/module.h>	/* Requerido por todos los módulos */
 #include <linux/unistd.h>
 #include <linux/kernel.h>	/* Definición de KERN_INFO */
@@ -21,6 +15,7 @@
 #include <linux/string.h>	/* para tratar las cadenas */
 #include <linux/vmalloc.h>	/* Para reservar y liberar memoria e el kernel */
 #include <linux/semaphore.h>
+#include <linux/fs.h>
 #include <asm-generic/uaccess.h>
 #include "cbuffer.h"
 
@@ -30,7 +25,7 @@ MODULE_DESCRIPTION("modFIFO Kernel Module - LIN-FDI-UCM");
 MODULE_AUTHOR("Daniel y Manuel");
 
 // Tamaño del buffer de entrada desde el espacio de usuario
-#define BUFFER_LENGTH 512
+#define BUFFER_LENGTH 50
 
 /* Tamaño del buffer del kernel, para controlar el tamaño de la lista.
    Solo hasta la mitad */
@@ -55,3 +50,4 @@ struct semaphore sem_cons; /* cola de espera para consumidor(es) */
 int nr_prod_waiting=0; /* Número de procesos productores esperando */
 int nr_cons_waiting=0; /* Número de procesos consumidores esperando */
 
+#endif /* _MODFIFOH */

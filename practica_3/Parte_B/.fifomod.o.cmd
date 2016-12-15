@@ -1,0 +1,1 @@
+cmd_/home/kernel/Documentos/LIN/practica_3/Parte_B/fifomod.o := ld -m elf_x86_64   -r -o /home/kernel/Documentos/LIN/practica_3/Parte_B/fifomod.o /home/kernel/Documentos/LIN/practica_3/Parte_B/modFIFO.o /home/kernel/Documentos/LIN/practica_3/Parte_B/cbuffer.o 
