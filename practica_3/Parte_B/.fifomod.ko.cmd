@@ -1,1 +1,0 @@
-cmd_/home/kernel/Documentos/LIN/practica_3/Parte_B/fifomod.ko := ld -r -m elf_x86_64 -T /usr/src/linux-headers-3.14.1.lin/scripts/module-common.lds --build-id  -o /home/kernel/Documentos/LIN/practica_3/Parte_B/fifomod.ko /home/kernel/Documentos/LIN/practica_3/Parte_B/fifomod.o /home/kernel/Documentos/LIN/practica_3/Parte_B/fifomod.mod.o
