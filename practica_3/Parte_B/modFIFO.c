@@ -105,11 +105,13 @@ ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *of
 	// Inicializo buffer auxiliar
 	memset(data, '\0', cbuffer->max_size);
 
+	// Miro si puedo leer los bytes requeridos
+	if (len > cbuffer->max_size) { return -EINTR; }
+
 // Seccion crítica
 	if(down_interruptible(&mtx))
 			return -EINTR;
-	// Miro si puedo leer los bytes requeridos
-	if (len > cbuffer->max_size) { return -EINTR; }
+
 	// Espero hasta que haya algo que leer y algún productor
 	while((prod_count>0) && (len > size_cbuffer_t(cbuffer))){
 		nr_cons_waiting++;
@@ -195,6 +197,8 @@ ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, lof
 	}
 	up(&mtx);
 // Fin sección crítica
+
+	(*off)+=len;
 
 	// Devuelvo bytes escritos
 	return len;

@@ -1,71 +1,73 @@
 
-OPEN () {
+OPEN (file *fd) {
 
-	MIRO SI ES PRODUCTOR O CONSUMIDOR EN FUNCION DE LA OPCION DE APERTURA
-	SI ES CONSUMIDOR
-		BLOQUEO
-			INCREMENTO EL NUMERO DE CONSUMIDORES
-			ESPERAR A QUR HAYA ALGUN PRODUCTOR
-		LIBERO
-	SI ES PRODUCTOR
-		BLOQUEO
-			INCREMENTO EL NUMERO DE PRODUCTORES
-			ESPERAR A QUR HAYA ALGUN CONSUMIDOR
-		LIBERO
-	FIN SI
-
-	ABRIR COMUNICACION
-	DEVOLVER DESCRIPTOR DE /proc/modFIFO
+	compruebo si es consumidor o productor mirando la estructura de apertura
+	si es consumidor
+		bloqueo, cojo mutex
+			incremento el número de consumidores
+			despierto a algún productor a la espera
+			espero a que haya algún productor. variable condicional
+		libero, dejo mutex
+	si es productor
+		bloqueo, cojo mutex
+			incremento el número de productores
+			despierto a algún consumidor a la espera
+			espero a que haya algún consumidor, variable condicional
+		libero, dejo mutex
+	fin si
 }
 
-RELEASE () {
+RELEASE (file fd*) {
 
-	MIRO SI ES PRODUCTOR O CONSUMIDOR EN FUNCION DE LA OPCION DE APERTURA
-	SI ES CONSUMIDOR
-		BLOQUEO
-			REDUZCO EL NUMERO DE CONSUMIDORES
-			SI NO HAY CONSUMIDORES NI PRODUCTORES VACIO EL BUFFER
-		LIBERO
-	SI ES PRODUCTOR
-		BLOQUEO
-			REDUZCO EL NUMERO DE PRODUCTORES
-			SI NO HAY CONSUMIDORES NI PRODUCTORES VACIO EL BUFFER
-		LIBERO
-	FIN SI
-
+	compruebo si es productor o consumidor mirando la opción de apertura de fd
+	si es consumidor
+		bloqueo, cojo mutex
+			reduzco el número de consumidores
+			si no hay productores ni consumidores vacío el buffer
+		linero, dejo el mutex
+	si es productor
+		bloqueo, cojo el mutex
+			reduzco el número de productores
+			si no hay productores ni consumidores vacío el buffer
+		libero, dejo el mutex
+	fin sis
 }
 
-READ () {
+READ (void* user_buf, int len,loff_t *off) {
 
-	MIRO SI PUEDO LEER LOS BYTES REQUERIDOS
+	miro si el buffer puede albergar suficientes datos
 
-	BLOQUEO MUTEX
+	bloqueo, cojo mutex
 
-		ESPERO A QUE HAYA EN EL BUFFER ALGO QUE LEER Y PRODUCTORES
-		COMPROBAR FIN DE COMUNICACION Y MANDAR ERROR EN TAL CASO
-		EXTRAIGO DATOS
-		DESPIERTO A UN POSIBLE PRODUCTOR
+		espero a que hay algo que leer en el buffer y algún productor
+		compruebo fin de comunicación
+		extraigo datos
+		despierto a un productor si hay alguno esperando
 
-	LIBERO MUTEX
+	libero, dejo mutex
 
-	COPIO DATOS AL USUARIO
+	copio los datos al espacio de usuario
 
-	DEVUELVO LOS BYTES LEIDOS
+	actualizo off
+
+	devuelvo el número de bytes leídos
 }
 
-WRITE () {
+WRITE (void* user_buf, int len,loff_t *off) {
 
-	MIRO SI PUEDO ESCRIBIR LOS BYTES REQUERIDOS
-	COPIA LOS DATOS DEL USUARIO
+	miro si los datos caben en el buffer
+	copio los datos del espacio de usuario
 
-	BLOQUEO MUTEX
+	bloqueo, cojo mutex
 
-		ESPERO A QUE HAYA HUECO EN EL BUFFER Y CONSUIMDORES
-		COMPROBAR FIN DE COMUNICACION Y MANDAR ERROR EN TAL CASO
-		INSERTO DATOS
-		DESPIERTO A UN POSIBLE CONSUMIDOR
+		espero a que haya espacio suficiente en el buffer y que haya consumidores, variable condicional
+		compruebo si hay fin de comunicación
+		inserto datos
+		despierto a un consumidor si hay alguno esperando
 
-	LIBERO MUTEX
+	libero, dejo mutex
 
-	DEVUELVO LOS BYTES ESCRITOS
+	actualizo off
+
+	devuelvo el número de bytes escritos
 }
