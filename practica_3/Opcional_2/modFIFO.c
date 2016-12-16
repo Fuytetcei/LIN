@@ -1,6 +1,6 @@
 /*
 
-	PARTE B DE LA PRÁCTICA 3
+	PARTE OPCIONAL 2 DE LA PRÁCTICA 3
 
 */
 
@@ -200,6 +200,36 @@ ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, lof
 	return len;
 };
 
+static long do_ioctl(struct file *filp, u_int cmd, u_long arg){
+	return 0;
+};
+
+static loff_t do_llseek (struct file *file, loff_t offset, int orig){
+	loff_t ret;
+ 
+	switch (orig)
+	{
+		case SEEK_SET:
+			ret = offset;
+			break;
+		case SEEK_CUR:
+			ret = file->f_pos + offset;
+			break;
+		case SEEK_END:
+			ret = sizeof (BUFFER_LENGTH) - offset;
+			break;
+		default:
+			ret = -EINVAL;
+	}
+
+	if (ret >= 0)
+		file->f_pos = ret;
+	else
+		ret = -EINVAL;
+
+	return ret;
+};
+
 // -- GESTIÓN DE LA ENTRADA /PROC ---------------------------------
 
 // Asigno las funciones necesarias para operar con la entrada
@@ -208,19 +238,21 @@ static const struct file_operations fops = {
 	.write = write_modFIFO,
 	.open = open_modFIFO,
 	.release = release_modFIFO,
+	.unlocked_ioctl = do_ioctl,
+	.llseek = do_llseek,
 };
 
 // Carga del módulo
 int modulo_modFIFO_init(void) {
 
-	// Creo la entrada a /Proc
-	proc_entry = proc_create("fifomod", 0666, NULL, &fops);
-	if(!proc_entry) {
-		// Si hay error libero memoria y salgo con error
-		printk(KERN_INFO "modfifo: No se pudo crear entrada /proc.\n");
-		return -ENOMEM;
+	// Creo la entrada al dispositivo
+	int result;
+ 
+	if (register_chrdev (DRIVER_MAJOR, DRIVER_NAME, &fops)) {
+		printk ("No se pudo registrar el módulo\n");
+		return result;
 	}
-	printk(KERN_INFO "modfifo: entrada /proc creada.\n");
+	printk(KERN_INFO "modfifo: dispositivo de caracteres creado\n");
 
 	// Inicializo los semáforos
 	sema_init(&mtx, 1);
@@ -242,10 +274,12 @@ void modulo_modFIFO_clean(void) {
 	destroy_cbuffer_t(cbuffer);
 
 	// Elimino la entrada a /Proc
-	remove_proc_entry("modifo", NULL);
-	printk(KERN_INFO "modfifo: descargado.\n");
+	unregister_chrdev (DRIVER_MAJOR, DRIVER_NAME);
+	printk(KERN_INFO "modfifo: dispositivo de caracteres descargado.\n");
 
 };
+
+
 
 /* Declaración de funciones init y cleanup */
 module_init(modulo_modFIFO_init);

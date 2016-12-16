@@ -1,6 +1,6 @@
 /*
 
-	PARTE B DE LA PRÁCTICA 3
+	PARTE PRINCIPAL DE LA PRÁCTICA 1
 
 */
 
@@ -14,8 +14,9 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 
 	// Miro si es productor o consumidor
 	if(fd->f_mode & FMODE_READ) {
-		// Sumo uno al consumido
+		// Sumo uno al consumidor
 		cons_count++;
+
 		up(&sem_prod);
 		// Espero a que haya un productor
 		while(prod_count==0) {
@@ -87,7 +88,7 @@ ssize_t release_modFIFO (struct inode *node, struct file * fd) {
 	}
 
 	if(cons_count==0 && prod_count==0)
-		clear_cbuffer_t(cbuffer);
+			kfifo_reset(&cbuffer);
 	up(&mtx);
 
 	return 0;
@@ -96,20 +97,20 @@ ssize_t release_modFIFO (struct inode *node, struct file * fd) {
 // Consumir del buffer
 ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *off){
 
-	char data[cbuffer->max_size];
+	char data[BUFFER_LENGTH];
 
 	// Inicializo buffer auxiliar
-	memset(data, '\0', cbuffer->max_size);
+	memset(data, '\0', BUFFER_LENGTH);
 
 	// Miro si puedo leer los bytes requeridos
-	if (len > cbuffer->max_size) { return -EINTR; }
+	if (len > BUFFER_LENGTH) { return -EINTR; }
 
 // Seccion crítica
 	if(down_interruptible(&mtx))
 			return -EINTR;
 
 	// Espero hasta que haya algo que leer y algún productor
-	while((prod_count>0) && (len > size_cbuffer_t(cbuffer))){
+	while((prod_count>0) && (len >  kfifo_len(&cbuffer))){
 		nr_cons_waiting++;
 		up(&mtx);
 		if(down_interruptible(&sem_cons)){
@@ -123,10 +124,11 @@ ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *of
 	}
 
 	// Compruebo fin de comunicación
-	if ((prod_count==0) && (is_empty_cbuffer_t ( cbuffer ) < 0)) {up(&mtx);printk(KERN_INFO "modfifoREAD: fin de comunicacion\n"); return -EPIPE;}
+	if ((prod_count==0) && (kfifo_is_empty(&cbuffer))) {up(&mtx); return 0;}
 
 	// Extraigo datos
-	remove_items_cbuffer_t(cbuffer, data, len);
+	if(!kfifo_out(&cbuffer, data, len))
+		return -EINTR;
 	// Despierto a un posible productor
 	if(nr_prod_waiting>0) {
 		up(&sem_prod);
@@ -150,23 +152,23 @@ ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *of
 // Producir en el buffer
 ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, loff_t *off){
 
-	char data[cbuffer->max_size];
+	char data[BUFFER_LENGTH];
 
 	// Inicializo buffer auxiliar
-	memset(data, '\0', cbuffer->max_size);
+	memset(data, '\0', BUFFER_LENGTH);
 
 	// Copio los datos del usuario
 	if(copy_from_user(data, buf, len))
 		return -EFAULT;
 
-	if (len > cbuffer->max_size) { return -EFAULT;}
+	if (len > BUFFER_LENGTH) { return -EFAULT;}
 
 // Seccion crítica
 	if(down_interruptible(&mtx))
 			return -EINTR;
 	// Miro si puedo leer los bytes requeridos
 	// Espero hasta que haya algo que leer y algún productor
-	while((cons_count>0) && (len > nr_gaps_cbuffer_t(cbuffer))){
+	while((cons_count>0) && (len > kfifo_avail(&cbuffer))){
 		nr_prod_waiting++;
 		up(&mtx);
 		if(down_interruptible(&sem_prod)){
@@ -184,7 +186,7 @@ ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, lof
 	if (cons_count==0) {up(&mtx); return -EPIPE;}
 
 	// Inserto datos datos
-	insert_items_cbuffer_t(cbuffer, data, len);
+	kfifo_in(&cbuffer, data, len);
 
 	// Despierto a un posible productor
 	if(nr_cons_waiting>0) {
@@ -228,7 +230,7 @@ int modulo_modFIFO_init(void) {
 	sema_init(&sem_cons, 0);
 
 	// Inicializo el buffer
-	cbuffer = create_cbuffer_t(BUFFER_LENGTH);
+	INIT_KFIFO(cbuffer);
 
 
 	/* Devolver 0 para indicar una carga correcta del módulo */
@@ -239,7 +241,7 @@ int modulo_modFIFO_init(void) {
 void modulo_modFIFO_clean(void) {
 
 	// Destruyo el buffer
-	destroy_cbuffer_t(cbuffer);
+	kfifo_free(&cbuffer);
 
 	// Elimino la entrada a /Proc
 	remove_proc_entry("modifo", NULL);
