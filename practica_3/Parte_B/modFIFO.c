@@ -11,7 +11,6 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 
 	// Miro si es productor o consumidor
 	if(fd->f_mode & FMODE_READ) {
-		printk(KERN_INFO "modfifoOPEN: abriendo consumidor\n");
 		// Sumo uno al consumidor
 		if(down_interruptible(&mtx))
 			return -EINTR;
@@ -37,7 +36,6 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 		printk(KERN_INFO "modfifoOPEN: abierto para lectura. %d %d\n", prod_count, cons_count);
 	}
 	else if(fd->f_mode & FMODE_WRITE){
-		printk(KERN_INFO "modfifoOPEN: abriendo productor\n");
 		// Sumo uno al productor
 		if(down_interruptible(&mtx))
 			return -EINTR;
@@ -73,7 +71,6 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 ssize_t release_modFIFO (struct inode *node, struct file * fd) {
 	// Miro si es productor o consumidor
 	if(fd->f_mode & FMODE_READ) {
-		printk(KERN_INFO "modfifoRELEASE: cerrando para lectura\n");
 		// Consumidor
 		// Resto uno al consumidor
 		if(down_interruptible(&mtx))
@@ -84,7 +81,6 @@ ssize_t release_modFIFO (struct inode *node, struct file * fd) {
 	}
 	else {
 		// Productor
-		printk(KERN_INFO "modfifoRELEASE: cerrando para escritura\n");
 		// Resto uno al productor
 		if(down_interruptible(&mtx))
 			return -EINTR;
@@ -126,7 +122,7 @@ ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *of
 	}
 
 	// Compruebo fin de comunicación
-	if (prod_count==0) {up(&mtx); return -EPIPE;}
+	if ((prod_count==0) && (is_empty_cbuffer_t ( cbuffer ) < 0)) {up(&mtx);printk(KERN_INFO "modfifoREAD: fin de comunicacion\n"); return -EPIPE;}
 
 	// Extraigo datos
 	remove_items_cbuffer_t(cbuffer, data, len);
