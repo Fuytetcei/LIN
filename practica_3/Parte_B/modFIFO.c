@@ -16,7 +16,8 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 		if(down_interruptible(&mtx))
 			return -EINTR;
 		cons_count++;
-		
+
+		up(&sem_prod);
 		// Espero a que haya un productor
 		while(prod_count==0) {
 			nr_cons_waiting++;
@@ -31,6 +32,7 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 				return -EINTR;
 
 		}
+
 		up(&mtx);
 		printk(KERN_INFO "modfifoOPEN: abierto para lectura. %d %d\n", prod_count, cons_count);
 	}
@@ -41,11 +43,12 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 			return -EINTR;
 		prod_count++;
 
+		up(&sem_cons);
+
 		// Espero a que haya un consumidor
 		while(cons_count==0) {
 			nr_prod_waiting++;
 			up(&mtx);
-			printk(KERN_INFO "modfifoOPEN: esperando");
 			if(down_interruptible(&sem_prod)) {
 				down(&mtx);
 				nr_prod_waiting--;
@@ -53,10 +56,9 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 				return -EINTR;
 			}
 			if(down_interruptible(&mtx))
-				return -EINTR;
-			printk(KERN_INFO "modfifoOPEN: ...\n");
 
 		}
+
 		up(&mtx);
 		printk(KERN_INFO "modfifoOPEN: abierto para escritura %d %d\n", prod_count, cons_count);
 	} else {
@@ -99,33 +101,28 @@ ssize_t release_modFIFO (struct inode *node, struct file * fd) {
 ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *off){
 
 	char data[cbuffer->max_size];
-	int err;
 
 	// Inicializo buffer auxiliar
 	memset(data, '\0', cbuffer->max_size);
 
 // Seccion crítica
-	printk(KERN_INFO "modfifo READ: cojo mutex\n");
 	if(down_interruptible(&mtx))
 			return -EINTR;
 	// Miro si puedo leer los bytes requeridos
 	if (len > cbuffer->max_size) { return -EINTR; }
 	// Espero hasta que haya algo que leer y algún productor
-	while((prod_count>0) && (len > cbuffer->size)){
+	while((prod_count>0) && (len > size_cbuffer_t(cbuffer))){
 		nr_cons_waiting++;
 		up(&mtx);
-		printk(KERN_INFO "modfifo READ: suelto mutex\n");
 		if(down_interruptible(&sem_cons)){
 			down(&mtx);
 			nr_cons_waiting--;
 			up(&mtx);
 			return -EINTR;
 		}
-		printk(KERN_INFO "modfifo READ: cojo mutex\n");
 		if(down_interruptible(&mtx))
 			return -EINTR;
 	}
-
 
 	// Compruebo fin de comunicación
 	if (prod_count==0) {up(&mtx); return -EPIPE;}
@@ -133,15 +130,16 @@ ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *of
 	// Extraigo datos
 	remove_items_cbuffer_t(cbuffer, data, len);
 	// Despierto a un posible productor
-	up(&sem_prod);
+	if(nr_prod_waiting>0) {
+		up(&sem_prod);
+		nr_prod_waiting--;
+	}
 
-	printk(KERN_INFO "modfifo READ: suelto mutex\n");
 	up(&mtx);
 // Fin sección crítica
 
 	// Mando los datos al usuario y devuelvo bytes leídos
-	err = copy_to_user(buf, data, len);
-	if(err)
+	if(copy_to_user(buf, data, len))
 		return -EINTR;
 
 	(*off)+=len;
@@ -155,28 +153,23 @@ ssize_t read_modFIFO(struct file *filp, char __user *buf, size_t len, loff_t *of
 ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, loff_t *off){
 
 	char data[cbuffer->max_size];
-	int err;
 
-	printk(KERN_INFO "modfifoWRITE: empezando a escribir\n");
 	// Inicializo buffer auxiliar
 	memset(data, '\0', cbuffer->max_size);
 
 	// Copio los datos del usuario
-	err = copy_from_user(data, buf, len);
-	if(err)
-		return -EINTR;
+	if(copy_from_user(data, buf, len))
+		return -EFAULT;
 
-	if (len > cbuffer->max_size) { return -EINTR;}
+	if (len > cbuffer->max_size) { return -EFAULT;}
 
 // Seccion crítica
-	printk(KERN_INFO "modfifoWRITE: cojo mutex\n");
 	if(down_interruptible(&mtx))
 			return -EINTR;
 	// Miro si puedo leer los bytes requeridos
 	// Espero hasta que haya algo que leer y algún productor
 	while((cons_count>0) && (len > nr_gaps_cbuffer_t(cbuffer))){
 		nr_prod_waiting++;
-		printk(KERN_INFO "modfifoWRITE: dejo mutex\n");
 		up(&mtx);
 		if(down_interruptible(&sem_prod)){
 			down(&mtx);
@@ -184,7 +177,6 @@ ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, lof
 			up(&mtx);
 			return -EINTR;
 		}
-		printk(KERN_INFO "modfifoWRITE: cojo mutex\n");
 		if(down_interruptible(&mtx))
 			return -EINTR;
 	}
@@ -197,8 +189,10 @@ ssize_t write_modFIFO(struct file *filp, const char __user *buf, size_t len, lof
 	insert_items_cbuffer_t(cbuffer, data, len);
 
 	// Despierto a un posible productor
-	up(&sem_cons);
-	printk(KERN_INFO "modfifoWRITE: dejo mutex\n");
+	if(nr_cons_waiting>0) {
+		up(&sem_cons);
+		nr_cons_waiting--;
+	}
 	up(&mtx);
 // Fin sección crítica
 
