@@ -9,13 +9,13 @@
 // Llamada a open
 ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 
+	if(down_interruptible(&mtx))
+		return -EINTR;
+
 	// Miro si es productor o consumidor
 	if(fd->f_mode & FMODE_READ) {
-		// Sumo uno al consumidor
-		if(down_interruptible(&mtx))
-			return -EINTR;
+		// Sumo uno al consumido
 		cons_count++;
-
 		up(&sem_prod);
 		// Espero a que haya un productor
 		while(prod_count==0) {
@@ -32,13 +32,10 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 
 		}
 
-		up(&mtx);
 		printk(KERN_INFO "modfifoOPEN: abierto para lectura. %d %d\n", prod_count, cons_count);
 	}
-	else if(fd->f_mode & FMODE_WRITE){
+	else {
 		// Sumo uno al productor
-		if(down_interruptible(&mtx))
-			return -EINTR;
 		prod_count++;
 
 		up(&sem_cons);
@@ -57,37 +54,41 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 				return -EINTR;
 		}
 
-		up(&mtx);
 		printk(KERN_INFO "modfifoOPEN: abierto para escritura %d %d\n", prod_count, cons_count);
-	} else {
-		printk(KERN_INFO "modfifoOPEN: error de apertura\n");
-		return -EINTR;
 	}
+
+	up(&mtx);
 
 	return 0;
 }
 
 // Llamada a release
 ssize_t release_modFIFO (struct inode *node, struct file * fd) {
+
+	if(down_interruptible(&mtx))
+		return -EINTR;
+
 	// Miro si es productor o consumidor
 	if(fd->f_mode & FMODE_READ) {
 		// Consumidor
 		// Resto uno al consumidor
-		if(down_interruptible(&mtx))
-			return -EINTR;
 		cons_count--;
-		up(&mtx);
+		if(prod_count>0)
+			up(&sem_prod);
 		printk(KERN_INFO "modfifoRELEASE: cerrado para lectura\n");
 	}
 	else {
 		// Productor
 		// Resto uno al productor
-		if(down_interruptible(&mtx))
-			return -EINTR;
 		prod_count--;
-		up(&mtx);
+		if(cons_count>0)
+			up(&sem_cons);
 		printk(KERN_INFO "modfifoRELEASE: cerrado para escritura\n");
 	}
+
+	if(cons_count==0 && prod_count==0)
+		clear_cbuffer_t(cbuffer);
+	up(&mtx);
 
 	return 0;
 };

@@ -2,35 +2,39 @@
 OPEN (file *fd) {
 
 	compruebo si es consumidor o productor mirando la estructura de apertura
+	bloqueo, cojo mutex
 	si es consumidor
-		bloqueo, cojo mutex
-			incremento el número de consumidores
-			despierto a algún productor a la espera
-			espero a que haya algún productor. variable condicional
-		libero, dejo mutex
+		incremento el número de consumidores
+		despierto a algún productor a la espera
+		espero a que haya algún productor. variable condicional
 	si es productor
-		bloqueo, cojo mutex
-			incremento el número de productores
-			despierto a algún consumidor a la espera
-			espero a que haya algún consumidor, variable condicional
-		libero, dejo mutex
+		incremento el número de productores
+		despierto a algún consumidor a la espera
+		espero a que haya algún consumidor, variable condicional
+		
 	fin si
+
+	libero, dejo mutex
 }
 
 RELEASE (file fd*) {
 
 	compruebo si es productor o consumidor mirando la opción de apertura de fd
+	bloqueo, cojo mutex
 	si es consumidor
-		bloqueo, cojo mutex
+		
 			reduzco el número de consumidores
 			si no hay productores ni consumidores vacío el buffer
 		linero, dejo el mutex
 	si es productor
 		bloqueo, cojo el mutex
 			reduzco el número de productores
-			si no hay productores ni consumidores vacío el buffer
-		libero, dejo el mutex
+			
 	fin sis
+
+	si no hay productores ni consumidores vacío el buffer
+
+	libero, dejo el mutex
 }
 
 READ (void* user_buf, int len,loff_t *off) {
@@ -39,7 +43,7 @@ READ (void* user_buf, int len,loff_t *off) {
 
 	bloqueo, cojo mutex
 
-		espero a que hay algo que leer en el buffer y algún productor
+		espero a que hay algo que leer en el buffer, variable condicional consumidor
 		compruebo fin de comunicación
 		extraigo datos
 		despierto a un productor si hay alguno esperando
@@ -60,7 +64,7 @@ WRITE (void* user_buf, int len,loff_t *off) {
 
 	bloqueo, cojo mutex
 
-		espero a que haya espacio suficiente en el buffer y que haya consumidores, variable condicional
+		espero a que haya espacio suficiente en el buffer, variable condicional productor
 		compruebo si hay fin de comunicación
 		inserto datos
 		despierto a un consumidor si hay alguno esperando
