@@ -56,7 +56,7 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 				return -EINTR;
 			}
 			if(down_interruptible(&mtx))
-
+				return -EINTR;
 		}
 
 		up(&mtx);
@@ -66,7 +66,6 @@ ssize_t open_modFIFO(struct inode *node, struct file * fd) {
 		return -EINTR;
 	}
 
-	// Devolver descriptor /proc/modFIFO
 	return 0;
 }
 
