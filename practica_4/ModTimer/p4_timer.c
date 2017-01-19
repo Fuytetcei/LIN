@@ -8,7 +8,15 @@
 #include <linux/random.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include <linux/unistd.h>
+#include <linux/vmalloc.h>
+#include <linux/semaphore.h>
+#include <asm-generic/uaccess.h>
 #include "cbuffer.h"
+#include "list.h"
+
+static struct proc_dir_entry *proc_entry_config;
+static struct proc_dir_entry *proc_entry;
 
 // Estructura del timer
 struct timer_list my_timer;
@@ -29,11 +37,10 @@ int timer_period_ms;
 int max_randoms;
 int emergency_threshold;
 
-// Workqueue
-struct workqueue_struct myqueue;
-
 // Contador de referencias
 int cr;
+
+bool flag;
 
 // Mutex para sincronización
 DEFINE_SPINLOCK(mtxCBuff);
@@ -41,45 +48,99 @@ DEFINE_SPINLOCK(mtxList);
 
 // Semáforo
 struct semaphore mysem;
-struct semaphore waitsem;
 
+// Función de workqueue
+void bottom_half (struct work_struct *work) {
+    int _data, i;
+    list_item_t *newnode;
+    unsigned long flag;
 
-// Funcion /proc/modconfig
-ssize_t write_modconfig(struct file *filp, const char __user *buf, size_t len, loff_t *off) {
-    char aux[100];
-    int i;
+    printk(KERN_INFO "modtimer: bottom_half\n");
+    for(i=0;i<emergency_threshold;i++) {
+        newnode = (list_item_t*) vmalloc(sizeof(list_item_t));
+        if(!newnode)
+            return;
+        printk(KERN_INFO "modtimer: extraigo elemento\n");
+        // Leo del buffer
+        spin_lock_irqsave(&mtxCBuff, flag);
 
-    // Copio desde usuario
-    copy_from_user(&aux, buf, len);
+        // Extraigo elemento
+        remove_items_cbuffer_t(buff, (char*) &_data, 4);
 
-    // Compruebo que variable hay que modificar
-    if(!strncmp(&aux, "timer_period_ms", 15)) {
-        timer_period_ms = strtol(&aux+15, NULL, 10);
+        spin_unlock_irqrestore(&mtxCBuff, flag);
+
+        printk(KERN_INFO "modtimer: inserto elemento\n");
+
+        // Asigno datos
+        newnode->data = _data;
+
+        // Escribo en lista enlazada
+        spin_lock(&mtxList);
+        // Espero a que se consuman los elementos
+        while(list_empty(&mylist)) {
+            spin_unlock(&mtxList);
+            if(down_interruptible(&mysem))
+                return -EINTR;
+            spin_lock(&mtxList);
+        }
+
+        // Añado elemento
+        list_add_tail(&newnode->links, &mylist);
+        up(&mysem);
+
+        spin_unlock(&mtxList);
+        printk(KERN_INFO "modtimer: elemento guardado: %d\n", _data);
     }
 
-    if(!strncmp(&aux, "max_randoms", 11)) {
-        max_randoms = strtol(&aux+11, NULL, 10);
-    }
-
-    if(!strncmp(&aux, "emergency_threshold", 19)) {
-        emergency_threshold = strtol(&aux+19, NULL, 10);
-    }
-
-    (*off)+=len;
-
-    return len;
+    // Planifico timer de nuevo
+    mod_timer( &(my_timer), (jiffies + HZ)*(timer_period_ms*1000));
+    printk(KERN_INFO "modtimer: timer reprogramado\n");
 }
 
-ssize_t read_modtimer(struct file *filp, char __user *buf, size_t len, loff_t *off) {
+// Función del timer
+static void fire_timer(unsigned long data) {
+    unsigned int ran;
+    int cpu = 0;
+    struct work_struct newwork;
+    unsigned long flag;
 
-    char aux[100];
-    int i;
+    // Genero un número aleatorio
+    ran = get_random_int();
 
-    i = vsnprintf(&aux, 100, "timer_period_ms=%d\nemergency_threshold=%d\nmax_random=%d\n", timer_period_ms, emergency_threshold, max_randoms);
+    printk(KERN_INFO "modtimer: %d\n", (int)ran);
 
-    copy_to_user(buf, &aux, len)
+    // Escribo en el buffer circular
+    /*************** SECCION CRITICA *******************/
+    spin_lock_irqsave(&mtxCBuff, flag);
+    printk(KERN_INFO "modtimer: Inserto en el buffer\n");
+    insert_items_cbuffer_t(buff, (char*) &ran, 4);
 
-    (*off)+=len;
+    // Difiero tarea
+    printk(KERN_INFO "modtimer: Miro si tengo que diferir\n");
+    if(emergency_threshold <= size_cbuffer_t(buff)) {
+
+        printk(KERN_INFO "modtimer: difiero\n");
+        // Obtengo cpu actual
+        cpu = smp_processor_id();
+
+        // Elijo cpu
+        if(cpu%2)
+            cpu--;
+        else
+            cpu++;
+
+        INIT_WORK(&newwork, bottom_half);
+        schedule_work_on(cpu, &newwork);
+    }
+
+    // Miro si debo reactivar el timer
+    printk(KERN_INFO "modtimer: Miro si reactivo timer\n");
+    if(!is_full_cbuffer_t(buff)) {
+        printk(KERN_INFO "modtimer: Reactivo timer\n");
+        mod_timer( &(my_timer), (jiffies + HZ) * (timer_period_ms/1000));
+    }
+    spin_unlock_irqrestore(&mtxCBuff, flag);
+    printk(KERN_INFO "modtimer: Fin timer\n");
 }
 
 // Funciones /proc/modtimer
@@ -87,15 +148,44 @@ ssize_t read_modtimer(struct file *filp, char __user *buf, size_t len, loff_t *o
     int data;
     list_item_t* node;
 
+    printk(KERN_INFO "modtimer: read_modtimer\n");
+    spin_lock(&mtxList);
+
+    // Espero a que haya elementos
+    printk(KERN_INFO "modtimer: espero a que haya elementos\n");
+    /*if(!list_empty(&mylist)) {
+        down(&mysem);
+        printk(KERN_INFO "modtimer: esperado\n");
+    }*/
+
+    while(!list_empty(&mylist)) {
+        spin_unlock(&mtxList);
+        if(down_interruptible(&mysem)) {
+            return -EINTR;
+        }
+        spin_lock(&mtxList);
+    }
+
+    printk(KERN_INFO "modtimer: extraigo elemento\n");
     // Extraigo dato
     node = list_entry(mylist.next, list_item_t, links);
 
+    printk(KERN_INFO "modtimer: elimino elemento de la lista\n");
     // Elimino dato de la lista
     list_del(mylist.next);
+
+    printk(KERN_INFO "modtimer: extraigo datos\n");
     // Paso al usuario
     data = node->data;
+
+    up(&mysem);
+
+    spin_unlock(&mtxList);
+
+    printk(KERN_INFO "modtimer: devuelvo al usuario: %d\n", data);
     copy_to_user(buf, &data, 4);
 
+    printk(KERN_INFO "modtimer: libero memoria\n");
     // Libero memoria
     vfree(node);
 
@@ -106,14 +196,12 @@ ssize_t read_modtimer(struct file *filp, char __user *buf, size_t len, loff_t *o
 
 ssize_t release_modtimer (struct inode *node, struct file * fd) {
     struct list_head *pos = NULL, *n = NULL;
-    list_item_t *node = NULL;
-
-    // Espero a que terminen los trabajos y destruyo workqueue
-    flush_workqueue(&myqueue);
-    destroy_workqueue(&myqueue);
 
     // Espero a que acabe el timer y lo apago
     del_timer_sync(&my_timer);
+
+    // Espero a que terminen los trabajos
+    flush_scheduled_work();
 
     // Destruyo el buffer ciercular
     destroy_cbuffer_t(buff);
@@ -129,27 +217,22 @@ ssize_t release_modtimer (struct inode *node, struct file * fd) {
     }
 
     cr--;
+
+    return 0;
 }
 
 ssize_t open_modtimer(struct inode *node, struct file * fd) {
 
     if(cr) {
-        printk(KERN_INFO "timer_mod: ya ha un usuario\n");
+        printk(KERN_INFO "timer_mod: ya hay un usuario\n");
         return -1;
     }
 
     // Creo el buffer
     buff = create_cbuffer_t(max_randoms*4);
 
-    // Creo el timer
-    init_timer(&my_timer);
-
-    // Creo workqueue
-    &myqueue = create_workqueue("p4");
-
     // Creo la lista
     INIT_LIST_HEAD(&mylist);
-    flag=0;
 
     // Inicializo semáforo
     sema_init(&mysem, 0);
@@ -157,105 +240,118 @@ ssize_t open_modtimer(struct inode *node, struct file * fd) {
     // Inicio contador
     cr = 0;
 
+    // Creo el timer
+    init_timer(&my_timer);
+
     // Inicializo el timer
     my_timer.data=0;
     my_timer.function=fire_timer;
     my_timer.expires=(jiffies + HZ) * (timer_period_ms/1000);
 
     // Por último activo el timer
-    add_timer(&my_timer); 
+    add_timer(&my_timer);
 
-    cr++;
+    return 0;
+
 }
 
-// Función de workqueue
-void bottom_half (struct work_struct *work) {
-    int _data;
-    list_item_t newnode = (list_item_t*) vmalloc(sizeof(list_item_t));
+ssize_t read_modconfig(struct file *filp, char __user *buf, size_t len, loff_t *off) {
 
-    // Leo del buffer
-    spin_lock_irqsave(&mtxCBuff);
-
-    // Extraigo elemento
-    remove_items_cbuffer_t(buff, (char*) &_data, 4);
-
-    spin_unlock_irqrestore(&mtxCBuff);
-
-    // Asigno datos
-    newnode->data = data;
-
-    // Escribo en lista enlazada
-    spin_lock(&mtxList);
-        // Espero a que se consuman los elementos
-        if(list_empty(&mylist))
-            down(&mysem);
-        list_add_tail(newnode->links, &mylist);
-        up(&mysem);
-
-    spin_unlock(&mtxList);
-
-    // Despierto al programa de usuario
-    up(&mysem);
-
-    // Planifico timer de nuevo
-    mod_timer( &(my_timer), jiffies + HZ);
-}
+    char aux[100];
+    int i = 0;
 
 
-// Función del timer
-static void fire_timer(unsigned long data) {
-    unsigned int ran;
-    int cpu;
-    struct work_struct *newwork;
-
-    // Genero un número aleatorio
-    ran = get_random_int();
-
-    // Escribo en el buffer circular
-    /*************** SECCION CRITICA *******************/
-    spin_lock(&mtxCBuff);
-    insert_items_cbuffer_t(buff, (char*) &ran, 4);
-
-    // Difiero tarea
-    if(emergency_threshold <= size_cbuffer_t(buff)) {
-        // Obtengo cpu actual
-        cpu = smp_processor_id();
-
-        // Elijo cpu
-        if(cpu%2)
-            cpu = cpu--;
-        else
-            cpu = cpu++;
-
-        INIT_WORK(newwork, bottom_half);
-        queue_work_on(cpu, &myqueue, newwork);
+    if(flag) {
+        memset(aux, '\0', 100);
+        i = sprintf(aux, "timer_period_ms=%d\nemergency_threshold=%d\nmax_random=%d\n", timer_period_ms, emergency_threshold, max_randoms);
+        copy_to_user(buf, aux, 100);
+        flag=!flag;
+        (*off)+=i;
     }
-        
-    // Miro si debo reactivar el timer
-    if(!is_full_cbuffer_t(buff))
-	   mod_timer( &(my_timer), jiffies + HZ);
-    spin_unlock(&mtxCBuff);
-    /************** FIN SECCION CRITICA *****************/
+    else {
+        flag = !flag;
+        (*off) = (loff_t) filp;
+        i=0;
+    }
+
+    return i;
 }
+
+// Funcion /proc/modconfig
+ssize_t write_modconfig(struct file *filp, const char __user *buf, size_t len, loff_t *off) {
+    char aux[100];
+
+    // Copio desde usuario
+    memset(aux, '\0', 100);
+    copy_from_user(aux, buf, len);
+
+    // Compruebo que variable hay que modificar
+    if(!strncmp(aux, "timer_period_ms", 15)) {
+        timer_period_ms = simple_strtol(&aux[0]+16, NULL, 10);
+    }
+
+    if(!strncmp(aux, "max_randoms", 11)) {
+        max_randoms = simple_strtol(&aux[0]+12, NULL, 10);
+    }
+
+    if(!strncmp(aux, "emergency_threshold", 19)) {
+        emergency_threshold = simple_strtol(&aux[0]+20, NULL, 10);
+    }
+
+    (*off)+=len;
+
+    return len;
+}
+
+static const struct file_operations fops = {
+    .read = read_modtimer,
+    .release = release_modtimer,
+    .open = open_modtimer,
+};
+
+static const struct file_operations fopsconf = {
+    .read = read_modconfig,
+    .write = write_modconfig,
+};
 
 int init_timer_module( void ) {
-    struct file *fd = NULL;
 
-    // Leo los parámetros de configuración
-    fd = filp_open("/proc/timerConf", NULL, O_RDONLY);
-    if(!fd) {
-        printk(KERNEL_INFO "timer: error al leer configuracion");
-        return -1;
+    // Asigno una configuración por defecto
+    max_randoms = 10;
+    timer_period_ms = 1000;
+    emergency_threshold = 8;
+
+    // Registro el modtimer
+    proc_entry = proc_create("modtimer", 0666, NULL, &fops);
+    if(!proc_entry) {
+        // Si hay error libero memoria y salgo con error
+        printk(KERN_INFO "modtimer: No se pudo crear entrada /proc.\n");
+        return -ENOMEM;
     }
+    printk(KERN_INFO "modtimer: entrada /proc creada.\n");
 
-    /********************** CARGAR CONFIGURACION ************************/
+    // Registro la configuración
+    // Creo la entrada a /Proc
+    proc_entry_config = proc_create("modconfig", 0666, NULL, &fopsconf);
+    if(!proc_entry_config) {
+        // Si hay error libero memoria y salgo con error
+        printk(KERN_INFO "modconfig: No se pudo crear entrada /proc.\n");
+        return -ENOMEM;
+    }
+    printk(KERN_INFO "modconfig: entrada /proc creada.\n");
+
+    flag = true;
 
     return 0;
 }
 
-
 void cleanup_timer_module( void ){
 
+    remove_proc_entry("modtimer", NULL);
+    printk(KERN_INFO "modtimer: descargado.\n");
+
+    remove_proc_entry("modconfig", NULL);
+    printk(KERN_INFO "modconfig: descargado.\n");
 }
 
 module_init( init_timer_module );
