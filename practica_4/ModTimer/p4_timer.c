@@ -85,7 +85,7 @@ void bottom_half (struct work_struct *work) {
 
         // Despierto a algún proceso en espera
         up(&mysem);
-        printk(KERN_INFO "modtimer: elemento guardado: %d\n", newnode->data);
+        printk(KERN_INFO "modtimer: bottom half: %d\n", newnode->data);
     }
 
     // Despierto a un posible consumidor
@@ -96,7 +96,6 @@ void bottom_half (struct work_struct *work) {
         read_wait--;
     }
     up(&mysem);
-    printk(KERN_INFO "modtimer: volcado finalizado \n");
 }
 
 // Función del timer
@@ -108,7 +107,6 @@ static void fire_timer(unsigned long data) {
 
     // Genero un número aleatorio
     ran = get_random_int()%max_randoms;
-    printk(KERN_INFO "modtimer: random generado\n");
 
     // Escribo en el buffer circular
     spin_lock_irqsave(&mtxCBuff, flag);
@@ -118,11 +116,8 @@ static void fire_timer(unsigned long data) {
 
     spin_unlock_irqrestore(&mtxCBuff, flag);
 
-    printk(KERN_INFO "modtimer: elemento insertado\n");
-
     // Difiero tarea
     if(emergency_threshold <= size) {
-        printk(KERN_INFO "modtimer: difiero\n");
         // Obtengo cpu actual
         cpu = smp_processor_id();
 
@@ -146,8 +141,6 @@ ssize_t read_modtimer(struct file *filp, char __user *buf, size_t len, loff_t *o
     char dev[50];
 
     // Espero a que haya elementos
-    printk(KERN_INFO "modtimer: espero a que haya elementos...\n");
-
     if(down_interruptible(&mysem))
         return -EINTR;
     while(list_empty(&mylist)) {
@@ -163,8 +156,6 @@ ssize_t read_modtimer(struct file *filp, char __user *buf, size_t len, loff_t *o
             return -EINTR;
 
     }
-
-    printk(KERN_INFO "modtimer: extraigo elemento\n");
     // Extraigo dato
     node = list_entry(mylist.next, list_item_t, links);
 
@@ -175,16 +166,11 @@ ssize_t read_modtimer(struct file *filp, char __user *buf, size_t len, loff_t *o
 
     // Paso al usuario
     data = node->data;
-    printk(KERN_INFO "modtimer: %d\n", node->data);
-
     data = sprintf(dev, "%d\n", data);
-
     copy_to_user(buf, (const void*)&dev, data);
 
     // Libero memoria
     vfree(node);
-
-    printk(KERN_INFO "modtimer: libero memoria\n");
 
     (*off)+=data;
 
@@ -230,17 +216,13 @@ ssize_t open_modtimer(struct inode *node, struct file * fd) {
     cr = 1;
     up(&mysem);
 
-    printk(KERN_INFO "Abriendo\n");
     // Creo el buffer
-    printk(KERN_INFO "Inicio buffer\n");
     buff = create_cbuffer_t(BUFFER_LENGTH);
 
     // Creo la lista
-    printk(KERN_INFO "Inicio lista\n");
     INIT_LIST_HEAD(&mylist);
 
     // Creo el timer
-    printk(KERN_INFO "Inicio timer\n");
     init_timer(&my_timer);
 
     // Inicializo el timer
@@ -250,8 +232,6 @@ ssize_t open_modtimer(struct inode *node, struct file * fd) {
 
     // Por último activo el timer
     add_timer(&my_timer);
-
-    printk(KERN_INFO "Fin open\n");
 
     return 0;
 
@@ -348,7 +328,6 @@ int init_timer_module( void ) {
     cr = 0;
 
     // Inicializo semáforo
-    printk(KERN_INFO "Inicio semáforos\n");
     sema_init(&mysem, 1);
     sema_init(&conssem, 0);
 
